@@ -1,0 +1,21 @@
+Analyzing calculator...                                         
+
+warning • The value of the local variable 'isDark' isn't used • lib/main.dart:55:11 • unused_local_variable
+   info • 'background' is deprecated and shouldn't be used. Use surface instead. This feature was deprecated after v3.18.0-0.1.pre • lib/main.dart:70:7 • deprecated_member_use
+   info • 'onBackground' is deprecated and shouldn't be used. Use onSurface instead. This feature was deprecated after v3.18.0-0.1.pre • lib/main.dart:71:7 • deprecated_member_use
+  error • The argument type 'CardTheme' can't be assigned to the parameter type 'CardThemeData?'.  • lib/main.dart:100:18 • argument_type_not_assignable
+  error • Target of URI doesn't exist: 'screens/reports/uber_grid_screen.dart' • lib/router.dart:11:8 • uri_does_not_exist
+warning • Unused import: '../../models/earnings_entry.dart' • lib/screens/earnings/earnings_screen.dart:6:8 • unused_import
+warning • Unused import: 'package:go_router/go_router.dart' • lib/screens/reports/reports_screen.dart:3:8 • unused_import
+  error • The getter 'boltBrutto' isn't defined for the type 'MonthlyPayroll' • lib/screens/reports/reports_screen.dart:38:22 • undefined_getter
+  error • The getter 'uberBrutto' isn't defined for the type 'MonthlyPayroll' • lib/screens/reports/reports_screen.dart:39:22 • undefined_getter
+  error • The getter 'wecabBrutto' isn't defined for the type 'MonthlyPayroll' • lib/screens/reports/reports_screen.dart:40:23 • undefined_getter
+warning • The value of the local variable 'theme' isn't used • lib/screens/settings/settings_screen.dart:45:11 • unused_local_variable
+   info • 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/settings_screen.dart:187:19 • deprecated_member_use
+   info • 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/settings_screen.dart:188:19 • deprecated_member_use
+   info • 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/settings_screen.dart:193:19 • deprecated_member_use
+   info • 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/settings_screen.dart:194:19 • deprecated_member_use
+   info • 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/settings_screen.dart:199:19 • deprecated_member_use
+   info • 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre • lib/screens/settings/settings_screen.dart:200:19 • deprecated_member_use
+warning • Unused import: '../../models/earnings_entry.dart' • lib/screens/tax_calculator/tax_calculator_screen.dart:6:8 • unused_import
+

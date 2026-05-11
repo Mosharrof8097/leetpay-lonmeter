@@ -1,0 +1,77 @@
+# Lönmeter - Comprehensive Feature Analysis & Production Roadmap
+
+## 1. Project Overview
+Lönmeter (formerly FleetPay) is a production-grade financial management ecosystem for Swedish fleet owners. It centralizes earnings tracking, automates complex Swedish tax calculations, and provides a secure, cloud-synced environment for multi-platform fleet operations.
+
+---
+
+## 2. Core Feature Analysis (v2.1.0 - Stability & Accuracy Edition)
+
+### 💎 A. Premium Brand Identity
+- **Official Rebranding**: Transitioned from FleetPay to **Lönmeter**.
+- **Splash Experience**: High-end animated entry with the slogan: *"HA KOLL PÅ VARJE KRONA DU KÖR IN"*.
+- **Visual Excellence**: Unified **Dark Neon** design language.
+- **UI Robustness (NEW)**: Fixed RenderFlex overflows in detailed analytics cards; improved layout flexibility for smaller devices.
+
+### ☁️ B. Supabase Cloud Infrastructure
+- **Live Synchronization**: Real-time data persistence across multiple devices.
+- **Secure Authentication**: Complete flow (SignUp, Login, Password Reset).
+- **Multi-Tenant Security**: Enforced **Row Level Security (RLS)**.
+- **Schema Hardening (NEW)**: Fixed `import_history` column naming mismatch (`total_rows`) ensuring reliable audit logs.
+
+### 📥 C. Universal File Importer
+- **Platform Agnostic**: Supports `.xlsx` and `.csv` from Bolt, Uber, etc.
+- **Dynamic Auto-Mapping**: Interactive column mapping UI with persistent preferences.
+- **Driver Alias Resolver**: Persistent name-mismatch handling.
+- **Import History Manager**: Ability to **Revert/Bulk-Delete** specific imports with immediate dashboard synchronization.
+
+### 🧮 D. Swedish Tax & Payroll Engine
+- **Compliant Logic**: Automated deductions (Moms 6%, Social Fees 31.42%, FORA 4.5%).
+- **Data Integrity (NEW)**: **Orphaned Earnings Handling**; deleting a driver no longer removes their historical earnings from the reports, maintaining total financial accuracy.
+
+### 📊 E. Dashboard & Real-Time Analytics
+- **Reactive Updates (NEW)**: Implemented explicit Riverpod provider invalidation (`monthlyPayrollProvider`). Dashboard metrics (Net Profit, Revenue, etc.) now update instantly after any deletion or modification.
+- **Interactive Charts**: Dynamic financial visualizations using `fl_chart`.
+- **Professional Exports**: Generate high-quality PDF/Excel specifications.
+
+---
+
+## 3. Technical Stack Analysis
+
+- **Frontend**: Flutter (3.22+)
+- **Backend**: Supabase Cloud (PostgreSQL)
+- **State Management**: Riverpod (Reactive & Global with explicit invalidation)
+- **Security**: Supabase Auth + DotEnv isolation.
+
+---
+
+## 4. Antigravity Working Flow (The Senior Approach)
+
+My working flow is designed for speed, safety, and production-grade stability:
+
+1.  **Deep Diagnostic**: Instead of patching symptoms, I trace issues back to the root (e.g., finding why a dropdown crashes by analyzing the list state).
+2.  **State-First Logic**: I prioritize State Management (Riverpod) to ensure that the "Source of Truth" is always consistent across the entire app.
+3.  **Defensive Programming**: I implement safety checks (null-handling, `.firstOrNull`, dropdown value validation) to prevent "Red Screen" crashes in production.
+4.  **Database Synchronization**: I ensure the app's internal logic matches the Supabase schema and RLS policies exactly.
+5.  **Aesthetic Refinement**: I fix UI overflows and spacing issues to maintain a premium feel.
+6.  **Explicit Invalidation**: I use manual provider invalidation where necessary to bypass caching issues and provide immediate UI feedback to the user.
+
+---
+
+## 5. Roadmap Status
+
+### 🟢 Phase 1: Stability & Cloud (Completed)
+- [x] Supabase Integration & RLS.
+- [x] Driver Deletion Safety & Data Persistence.
+- [x] Real-time Dashboard Updates.
+
+### 🟡 Phase 2: Expense Management (In Progress)
+- [ ] Receipt Attachment & OCR.
+- [ ] Automated Expense Categorization.
+
+### 🟢 Phase 3: Localization (Completed)
+- [x] **Swedish-First Interface**: 100% localization coverage for EN/SV.
+
+---
+*Analysis updated on: 2026-05-10*
+*Status: Production-Grade Stable (Verified)*

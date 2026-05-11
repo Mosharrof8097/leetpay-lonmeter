@@ -1,0 +1,50 @@
+name: fleetpay
+description: Lönmeter - Fleet management app for Swedish taxi/ride-hailing businesses.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.6.1
+  flutter_localizations:
+    sdk: flutter
+  hive_flutter: ^1.1.0
+  hive: ^2.2.3
+  go_router: ^14.8.1
+  fl_chart: ^0.70.2
+  pdf: ^3.12.0
+  printing: ^5.14.3
+  excel: ^4.0.6
+  csv: ^8.0.0
+  intl: ^0.20.2
+  shimmer: ^3.0.0
+  path_provider: ^2.1.5
+  uuid: ^4.5.3
+  file_picker: ^8.3.7
+  share_plus: ^10.1.4
+  google_fonts: ^6.3.3
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.9.4
+  cupertino_icons: ^1.0.9
+  supabase_flutter: ^2.12.4
+  animate_do: ^5.1.0
+  flutter_dotenv: ^6.0.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.13
+
+flutter:
+  generate: true
+  uses-material-design: true
+  assets:
+    - assets/
+    - assets/images/
+    - .env
