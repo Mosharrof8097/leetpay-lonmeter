@@ -123,7 +123,9 @@ class AppLocalizationsSv extends AppLocalizations {
   String get noDataForPeriod => 'Ingen data för denna period';
 
   @override
-  String get driverNotFound => 'Förare hittades inte';
+  String driverNotFound(Object name) {
+    return 'Föraren \'$name\' hittades inte.';
+  }
 
   @override
   String get deleteDriverTitle => 'Ta bort förare?';
@@ -509,4 +511,168 @@ class AppLocalizationsSv extends AppLocalizations {
 
   @override
   String get syncErrorDesc => 'Kunde inte spara inställningar till molnet.';
+
+  @override
+  String get boltFleetAutomation => 'Bolt Fleet Automation';
+
+  @override
+  String get syncDataFromBolt => 'Synka data från Bolt';
+
+  @override
+  String get syncNow => 'Synka nu';
+
+  @override
+  String get syncing => 'Synkar...';
+
+  @override
+  String get syncSuccess => 'Synkronisering lyckades!';
+
+  @override
+  String syncFailed(Object error) {
+    return 'Synkronisering misslyckades: $error';
+  }
+
+  @override
+  String get ridePrice => 'Resepris';
+
+  @override
+  String get boltCommission => 'Bolt provision';
+
+  @override
+  String get vat6 => '6% Moms';
+
+  @override
+  String get employerFee => 'Arbetsgivaravgift';
+
+  @override
+  String get finalNetPayout => 'Slutlig nettoutbetalning';
+
+  @override
+  String get yourTrips => 'Dina resor';
+
+  @override
+  String get noTripsFound => 'Inga resor hittades för dig ännu.';
+
+  @override
+  String get ref => 'Ref';
+
+  @override
+  String get driverDashboard => 'Föraröversikt';
+
+  @override
+  String get adminDashboard => 'Adminöversikt';
+
+  @override
+  String get netEarnings => 'Nettointäkt';
+
+  @override
+  String get priceTotal => 'Totalt pris';
+
+  @override
+  String get saasIntegrations => 'SaaS-integrationer';
+
+  @override
+  String get boltFleetApi => 'Bolt Fleet API';
+
+  @override
+  String get connected => 'Ansluten';
+
+  @override
+  String get setupCredentials => 'Konfigurera dina företagsuppgifter';
+
+  @override
+  String get checkingConnection => 'Kontrollerar anslutning...';
+
+  @override
+  String get apiIntegration => 'API-integration';
+
+  @override
+  String get clientId => 'Klient-ID';
+
+  @override
+  String get clientSecret => 'Klienthemlighet';
+
+  @override
+  String get fleetId => 'Företags- / Fleet-ID';
+
+  @override
+  String get saveIntegrationSettings => 'Spara integrationsinställningar';
+
+  @override
+  String get required => 'Obligatorisk';
+
+  @override
+  String get settingsSaved => 'Inställningarna har sparats';
+
+  @override
+  String get savePreset => 'Spara förinställning';
+
+  @override
+  String get presetName => 'Namn på förinställning';
+
+  @override
+  String get columnMapping => 'Kolumnmappning';
+
+  @override
+  String get loadPreset => 'Ladda förinställning';
+
+  @override
+  String get notMapped => 'Inte mappad';
+
+  @override
+  String get preview => 'Förhandsgranska';
+
+  @override
+  String get startImport => 'Starta import';
+
+  @override
+  String get unmatchedDriver => 'Okänd förare';
+
+  @override
+  String get createNewDriver => 'Skapa ny förare';
+
+  @override
+  String get mapAndContinue => 'Mappa och fortsätt';
+
+  @override
+  String get skipRow => 'Hoppa över rad';
+
+  @override
+  String get linkToExisting => 'Länka till befintlig:';
+
+  @override
+  String get incompleteRowsSkipped =>
+      'Obs: Ofullständiga rader kommer att hoppas över vid import.';
+
+  @override
+  String get signInDesc => 'Logga in på ditt Lönmeter-konto';
+
+  @override
+  String get signUpDesc => 'Hantera din flotta professionellt';
+
+  @override
+  String minCharacters(Object count) {
+    return 'Minst $count tecken';
+  }
+
+  @override
+  String get page => 'Sida';
+
+  @override
+  String get generated => 'Skapad';
+
+  @override
+  String get tax_deduction => 'Skatteavdrag';
+
+  @override
+  String get take_home_pay => 'Utbetalas';
+
+  @override
+  String get andel_av_inkort => 'Andel av inkört';
+
+  @override
+  String get weeklyEarnings => 'Veckointäkter';
+
+  @override
+  String get vat => 'Moms';
 }

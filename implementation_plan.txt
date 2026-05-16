@@ -1,0 +1,29 @@
+# Lönmeter - Implementation Plan for Financial Engine
+
+This document details how the financial calculation scenarios were integrated into the Lönmeter application.
+
+## Phase 1: Core Service Update
+- **Target:** `lib/services/calculation_service.dart`
+- **Action:** Refactored `calculateMoms`, `calculateNetEarnings`, and `calculateFullPayroll`.
+- **Outcome:** A single source of truth for all mathematical operations across the Flutter app.
+
+## Phase 2: Cloud Integration (Supabase)
+- **Target:** `supabase/functions/sync-bolt-fleet/index.ts`
+- **Action:** Updated the TypeScript sync logic to pull platform-specific rates (VAT, Fee, Share) from the database and apply them during the fetch process.
+- **Outcome:** Trips imported from Bolt are automatically processed with the correct financial rules before reaching the app.
+
+## Phase 3: UI Transparency (Live Worksheet)
+- **Target:** `lib/screens/drivers/driver_detail_screen.dart`
+- **Action:** Implemented the `_BoltBreakdownSection` with interactive toggles.
+- **Outcome:** Admins can demonstrate to drivers exactly how their payout is calculated, increasing trust and transparency.
+
+## Phase 4: State Management & Persistence
+- **Target:** `lib/providers/payroll_provider.dart`
+- **Action:** Updated the monthly aggregation logic to use the new `CalculationService` methods.
+- **Outcome:** Dashboard summaries and monthly reports reflect the updated financial model.
+
+---
+### Next Steps
+1. **Multi-Platform Support:** Extend the `platform_configs` logic to Uber and WeCab.
+2. **Historical Snapshots:** Ensure that if a rate changes today, past reports remain unchanged using snapshot columns in the `earnings` table.
+3. **Export Validation:** Update PDF/CSV export templates to match the new Breakdown structure.

@@ -3,9 +3,6 @@ import '../models/driver.dart';
 import '../services/supabase_service.dart';
 import 'payroll_provider.dart';
 import 'auth_provider.dart';
-import 'package:uuid/uuid.dart';
-
-const _uuid = Uuid();
 
 class DriverNotifier extends StateNotifier<List<Driver>> {
   final Ref ref;
@@ -26,15 +23,15 @@ class DriverNotifier extends StateNotifier<List<Driver>> {
   }
 
   Future<void> _load() async { 
-    state = await SupabaseService.getDrivers(); 
+    try {
+      final drivers = await SupabaseService.fetchDrivers();
+      state = drivers;
+    } catch (e) {
+      print('Error loading drivers: $e');
+    }
   }
 
-  Future<void> addDriver(String name, double commissionRate) async {
-    final driver = Driver(
-      id: _uuid.v4(), 
-      name: name, 
-      commissionRate: commissionRate
-    );
+  Future<void> addDriver(Driver driver) async {
     await SupabaseService.upsertDriver(driver);
     await _load();
     ref.invalidate(monthlyPayrollProvider);

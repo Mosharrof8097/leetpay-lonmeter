@@ -6,46 +6,6 @@ part of 'earnings_entry.dart';
 // TypeAdapterGenerator
 // **************************************************************************
 
-class PlatformModelAdapter extends TypeAdapter<PlatformModel> {
-  @override
-  final int typeId = 2;
-
-  @override
-  PlatformModel read(BinaryReader reader) {
-    final numOfFields = reader.readByte();
-    final fields = <int, dynamic>{
-      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
-    };
-    return PlatformModel(
-      id: fields[0] as String,
-      name: fields[1] as String,
-      isLocked: fields[2] as bool?,
-    );
-  }
-
-  @override
-  void write(BinaryWriter writer, PlatformModel obj) {
-    writer
-      ..writeByte(3)
-      ..writeByte(0)
-      ..write(obj.id)
-      ..writeByte(1)
-      ..write(obj.name)
-      ..writeByte(2)
-      ..write(obj.isLocked);
-  }
-
-  @override
-  int get hashCode => typeId.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is PlatformModelAdapter &&
-          runtimeType == other.runtimeType &&
-          typeId == other.typeId;
-}
-
 class EarningsEntryAdapter extends TypeAdapter<EarningsEntry> {
   @override
   final int typeId = 1;
@@ -69,13 +29,16 @@ class EarningsEntryAdapter extends TypeAdapter<EarningsEntry> {
       dricks: fields[9] as double,
       uberBrutto: fields[10] as double?,
       socialFees: fields[11] as double?,
+      appliedPercentage: fields[12] as double?,
+      platformFee: fields[13] as double?,
+      reference: fields[14] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, EarningsEntry obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(15)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -99,7 +62,13 @@ class EarningsEntryAdapter extends TypeAdapter<EarningsEntry> {
       ..writeByte(10)
       ..write(obj.uberBrutto)
       ..writeByte(11)
-      ..write(obj.socialFees);
+      ..write(obj.socialFees)
+      ..writeByte(12)
+      ..write(obj.appliedPercentage)
+      ..writeByte(13)
+      ..write(obj.platformFee)
+      ..writeByte(14)
+      ..write(obj.reference);
   }
 
   @override

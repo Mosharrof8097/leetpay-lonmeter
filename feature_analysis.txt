@@ -1,77 +1,77 @@
-# Lönmeter - Comprehensive Feature Analysis & Production Roadmap
+# Lönmeter - Technical Feature & Financial Logic Analysis
 
-## 1. Project Overview
-Lönmeter (formerly FleetPay) is a production-grade financial management ecosystem for Swedish fleet owners. It centralizes earnings tracking, automates complex Swedish tax calculations, and provides a secure, cloud-synced environment for multi-platform fleet operations.
-
----
-
-## 2. Core Feature Analysis (v2.1.0 - Stability & Accuracy Edition)
-
-### 💎 A. Premium Brand Identity
-- **Official Rebranding**: Transitioned from FleetPay to **Lönmeter**.
-- **Splash Experience**: High-end animated entry with the slogan: *"HA KOLL PÅ VARJE KRONA DU KÖR IN"*.
-- **Visual Excellence**: Unified **Dark Neon** design language.
-- **UI Robustness (NEW)**: Fixed RenderFlex overflows in detailed analytics cards; improved layout flexibility for smaller devices.
-
-### ☁️ B. Supabase Cloud Infrastructure
-- **Live Synchronization**: Real-time data persistence across multiple devices.
-- **Secure Authentication**: Complete flow (SignUp, Login, Password Reset).
-- **Multi-Tenant Security**: Enforced **Row Level Security (RLS)**.
-- **Schema Hardening (NEW)**: Fixed `import_history` column naming mismatch (`total_rows`) ensuring reliable audit logs.
-
-### 📥 C. Universal File Importer
-- **Platform Agnostic**: Supports `.xlsx` and `.csv` from Bolt, Uber, etc.
-- **Dynamic Auto-Mapping**: Interactive column mapping UI with persistent preferences.
-- **Driver Alias Resolver**: Persistent name-mismatch handling.
-- **Import History Manager**: Ability to **Revert/Bulk-Delete** specific imports with immediate dashboard synchronization.
-
-### 🧮 D. Swedish Tax & Payroll Engine
-- **Compliant Logic**: Automated deductions (Moms 6%, Social Fees 31.42%, FORA 4.5%).
-- **Data Integrity (NEW)**: **Orphaned Earnings Handling**; deleting a driver no longer removes their historical earnings from the reports, maintaining total financial accuracy.
-
-### 📊 E. Dashboard & Real-Time Analytics
-- **Reactive Updates (NEW)**: Implemented explicit Riverpod provider invalidation (`monthlyPayrollProvider`). Dashboard metrics (Net Profit, Revenue, etc.) now update instantly after any deletion or modification.
-- **Interactive Charts**: Dynamic financial visualizations using `fl_chart`.
-- **Professional Exports**: Generate high-quality PDF/Excel specifications.
+Lönmeter is a specialized fleet management and financial automation platform designed for Swedish ride-hailing operations (Bolt, Uber). It bridges the gap between raw platform revenue and compliant payroll processing.
 
 ---
 
-## 3. Technical Stack Analysis
+## 1. Core Financial Logic (The "Calculation Engine")
 
-- **Frontend**: Flutter (3.22+)
-- **Backend**: Supabase Cloud (PostgreSQL)
-- **State Management**: Riverpod (Reactive & Global with explicit invalidation)
-- **Security**: Supabase Auth + DotEnv isolation.
+The platform implements a precise mathematical model for Swedish taxi operations. All logic is centralized in `lib/services/calculation_service.dart`.
+
+### A. Revenue Deductions (Top-Down)
+1.  **VAT (Moms):** Standardized at 6%. 
+    *   *Formula:* `Moms = Gross Revenue * 0.056604` (Equivalent to `Gross - (Gross / 1.06)`)
+2.  **Platform Fee:** Variable percentage (e.g., 20% for Bolt) applied to the Gross Revenue.
+3.  **Company Net Revenue:** The remaining revenue after VAT and Platform Fees.
+    *   *Formula:* `Net Revenue = Gross - (Moms + Platform Fee)`
+
+### B. Payroll & Employer Costs
+Lönmeter calculates the "Total Payroll Cost" (Total Lönekostnad) which includes:
+1.  **Driver Provision:** The base commission (e.g., 35-45% of Net Revenue).
+2.  **Holiday Pay (Semesterersättning):** 12% of the Provision.
+3.  **Social Fees / Pension:** 4.5% (FORA) or 31.42% (Arbetsgivaravgifter) of the (Provision + Holiday Pay).
+    *   *Total Cost:* `Provision + Holiday Pay + Social Fees`
+
+### C. Driver Payout (The "Take-Home" Pay)
+1.  **Gross Salary:** `Provision + 100% Tips` (Tips are pass-through and not subject to company fees).
+2.  **Preliminary Tax:** 30% flat tax deducted from the Gross Salary.
+3.  **Net Payout:** The amount actually transferred to the driver.
+
+---
+
+## 2. Key Features & Workflows
+
+### Scenario 1: Automated Bolt Fleet Synchronization
+*   **Discovery:** The system uses Client ID/Secret to fetch all drivers and trips automatically.
+*   **Sync Logic:** `supabase/functions/sync-bolt-fleet` fetches data and applies Scenario 1A/B logic before storing it in the `earnings` table.
+*   **Deduplication:** Uses unique transaction IDs to prevent double-counting of trips.
+
+### Scenario 2: Universal Data Import
+*   **Template-Based:** Supports CSV imports for Uber, WeCab, and legacy Bolt reports.
+*   **Column Mapping:** Allows admins to map arbitrary CSV columns to Lönmeter's internal schema (`brutto`, `tips`, `fee`).
+*   **Validation:** Sanity checks for date formats and numeric values.
+
+### Scenario 3: Driver Transparency (Live Worksheet)
+*   **Interactive Simulation:** Located in `DriverDetailScreen`, this allows admins to adjust rates (Commission %, Tax %) in real-time to show drivers exactly how their payout is derived.
+*   **Breakdown:** Visualizes the "Profit vs. Cost" relationship for every SEK earned.
+
+### Scenario 4: Temporal Dashboard Reporting
+*   **Global Filters:** The entire app (Dashboard, Drivers, Reports) respects a global date range filter (Month/Year).
+*   **Aggregation:** Real-time summation of hundreds of trips into a single "Monthly Payroll" object.
 
 ---
 
-## 4. Antigravity Working Flow (The Senior Approach)
+## 3. Implementation Blueprint
 
-My working flow is designed for speed, safety, and production-grade stability:
-
-1.  **Deep Diagnostic**: Instead of patching symptoms, I trace issues back to the root (e.g., finding why a dropdown crashes by analyzing the list state).
-2.  **State-First Logic**: I prioritize State Management (Riverpod) to ensure that the "Source of Truth" is always consistent across the entire app.
-3.  **Defensive Programming**: I implement safety checks (null-handling, `.firstOrNull`, dropdown value validation) to prevent "Red Screen" crashes in production.
-4.  **Database Synchronization**: I ensure the app's internal logic matches the Supabase schema and RLS policies exactly.
-5.  **Aesthetic Refinement**: I fix UI overflows and spacing issues to maintain a premium feel.
-6.  **Explicit Invalidation**: I use manual provider invalidation where necessary to bypass caching issues and provide immediate UI feedback to the user.
-
----
-
-## 5. Roadmap Status
-
-### 🟢 Phase 1: Stability & Cloud (Completed)
-- [x] Supabase Integration & RLS.
-- [x] Driver Deletion Safety & Data Persistence.
-- [x] Real-time Dashboard Updates.
-
-### 🟡 Phase 2: Expense Management (In Progress)
-- [ ] Receipt Attachment & OCR.
-- [ ] Automated Expense Categorization.
-
-### 🟢 Phase 3: Localization (Completed)
-- [x] **Swedish-First Interface**: 100% localization coverage for EN/SV.
+| Component | Path | Responsibility |
+| :--- | :--- | :--- |
+| **Logic Engine** | `lib/services/calculation_service.dart` | Mathematical formulas and payroll generation. |
+| **State Sync** | `lib/providers/payroll_provider.dart` | Real-time aggregation of earnings into payroll views. |
+| **Cloud Worker** | `supabase/functions/sync-bolt-fleet/` | Background automation and API fetching. |
+| **Auth & Security** | `lib/services/supabase_service.dart` | RLS management and user authentication. |
+| **UI: Analytics** | `lib/screens/dashboard/` | High-level fleet performance visualizations. |
+| **UI: Driver Mgmt** | `lib/screens/drivers/` | Profile management and individual performance tracking. |
 
 ---
-*Analysis updated on: 2026-05-10*
-*Status: Production-Grade Stable (Verified)*
+
+## 4. Current Status & Roadmap
+
+*   **[COMPLETED]** Swedish Tax Compliance (Moms 6%, Employer Fees).
+*   **[COMPLETED]** Bolt API Integration & Driver Auto-Discovery.
+*   **[COMPLETED]** Universal CSV Importer.
+*   **[IN PROGRESS]** Uber API Integration.
+*   **[PLANNED]** Automated PDF Payslip Generation & Emailing.
+*   **[PLANNED]** Expense Tracking (Fuel, Insurance, Leasing) for Net Profit accuracy.
+
+---
+*Last Updated: 2026-05-16*

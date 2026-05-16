@@ -1,4 +1,9 @@
+import 'package:flutter/widgets.dart';
 import 'package:fleetpay/l10n/app_localizations.dart';
+
+extension BuildContextL10n on BuildContext {
+  AppLocalizations get l10n => AppLocalizations.of(this)!;
+}
 
 extension AppLocalizationsMethods on AppLocalizations {
   String get(String key) {
@@ -73,7 +78,7 @@ extension AppLocalizationsMethods on AppLocalizations {
       case 'week': return week;
       case 'earnings': return earnings;
       case 'delete_driver_content': return deleteDriverContent('{name}');
-      case 'driver_not_found': return driverNotFound;
+      case 'driver_not_found': return driverNotFound('{name}');
       case 'deactivate': return 'Deactivate';
       case 'activate': return 'Activate';
       case 'active': return active;
@@ -84,6 +89,13 @@ extension AppLocalizationsMethods on AppLocalizations {
       case 'commission_label': return commissionLabel;
       case 'save_driver': return saveDriver;
       case 'driver_added': return driverAdded;
+      case 'page': return page;
+      case 'generated': return generated;
+      case 'tax_deduction': return tax_deduction;
+      case 'take_home_pay': return take_home_pay;
+      case 'andel_av_inkort': return andel_av_inkort;
+      case 'weekly_earnings': return weeklyEarnings;
+      case 'vat': return vat;
       default: return key;
     }
   }

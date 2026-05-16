@@ -1,0 +1,6 @@
+driver_name,date,gross_amount,net_amount,tips,platform
+Ahmed Hassan,2026-05-01,560.00,420.00,0.00,Other
+Lars Eriksson,2026-05-01,790.00,592.50,30.00,Other
+Ahmed Hassan,2026-05-02,1050.00,787.50,45.00,Other
+Lars Eriksson,2026-05-03,430.00,322.50,0.00,Other
+Ahmed Hassan,2026-05-05,870.00,652.50,20.00,Other

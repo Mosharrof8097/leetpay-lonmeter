@@ -123,7 +123,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noDataForPeriod => 'No data for this period';
 
   @override
-  String get driverNotFound => 'Driver not found';
+  String driverNotFound(Object name) {
+    return 'Driver \'$name\' not found.';
+  }
 
   @override
   String get deleteDriverTitle => 'Delete driver?';
@@ -507,4 +509,168 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get syncErrorDesc => 'Could not save settings to the cloud.';
+
+  @override
+  String get boltFleetAutomation => 'Bolt Fleet Automation';
+
+  @override
+  String get syncDataFromBolt => 'Sync Data from Bolt';
+
+  @override
+  String get syncNow => 'Sync Now';
+
+  @override
+  String get syncing => 'Syncing...';
+
+  @override
+  String get syncSuccess => 'Sync successful!';
+
+  @override
+  String syncFailed(Object error) {
+    return 'Sync failed: $error';
+  }
+
+  @override
+  String get ridePrice => 'Ride Price';
+
+  @override
+  String get boltCommission => 'Bolt Commission';
+
+  @override
+  String get vat6 => '6% VAT';
+
+  @override
+  String get employerFee => 'Employer Fee';
+
+  @override
+  String get finalNetPayout => 'Final Net Payout';
+
+  @override
+  String get yourTrips => 'Your Trips';
+
+  @override
+  String get noTripsFound => 'No trips found for you yet.';
+
+  @override
+  String get ref => 'Ref';
+
+  @override
+  String get driverDashboard => 'Driver Dashboard';
+
+  @override
+  String get adminDashboard => 'Admin Dashboard';
+
+  @override
+  String get netEarnings => 'Net Earnings';
+
+  @override
+  String get priceTotal => 'Price Total';
+
+  @override
+  String get saasIntegrations => 'SaaS Integrations';
+
+  @override
+  String get boltFleetApi => 'Bolt Fleet API';
+
+  @override
+  String get connected => 'Connected';
+
+  @override
+  String get setupCredentials => 'Setup your company credentials';
+
+  @override
+  String get checkingConnection => 'Checking connection...';
+
+  @override
+  String get apiIntegration => 'API Integration';
+
+  @override
+  String get clientId => 'Client ID';
+
+  @override
+  String get clientSecret => 'Client Secret';
+
+  @override
+  String get fleetId => 'Company / Fleet ID';
+
+  @override
+  String get saveIntegrationSettings => 'Save Integration Settings';
+
+  @override
+  String get required => 'Required';
+
+  @override
+  String get settingsSaved => 'Settings saved successfully';
+
+  @override
+  String get savePreset => 'Save Preset';
+
+  @override
+  String get presetName => 'Preset Name';
+
+  @override
+  String get columnMapping => 'Column Mapping';
+
+  @override
+  String get loadPreset => 'Load Preset';
+
+  @override
+  String get notMapped => 'Not Mapped';
+
+  @override
+  String get preview => 'Preview';
+
+  @override
+  String get startImport => 'Start Import';
+
+  @override
+  String get unmatchedDriver => 'Unmatched Driver';
+
+  @override
+  String get createNewDriver => 'Create New Driver';
+
+  @override
+  String get mapAndContinue => 'Map & Continue';
+
+  @override
+  String get skipRow => 'Skip Row';
+
+  @override
+  String get linkToExisting => 'Link to existing:';
+
+  @override
+  String get incompleteRowsSkipped =>
+      'Note: Incomplete rows will be skipped during import.';
+
+  @override
+  String get signInDesc => 'Sign in to your Lönmeter account';
+
+  @override
+  String get signUpDesc => 'Manage your fleet professionally';
+
+  @override
+  String minCharacters(Object count) {
+    return 'Minimum $count characters';
+  }
+
+  @override
+  String get page => 'Page';
+
+  @override
+  String get generated => 'Generated';
+
+  @override
+  String get tax_deduction => 'Tax Deduction';
+
+  @override
+  String get take_home_pay => 'Take-Home Pay';
+
+  @override
+  String get andel_av_inkort => 'Share of Revenue';
+
+  @override
+  String get weeklyEarnings => 'Weekly Earnings';
+
+  @override
+  String get vat => 'VAT';
 }

@@ -26,7 +26,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await Supabase.instance.client.auth.signInWithPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
-      );
+      ).timeout(const Duration(seconds: 15));
       // GoRouter redirect will handle navigation
     } on AuthException catch (e) {
       if (mounted) {
@@ -37,7 +37,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.unexpectedError), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(e is Future && e.toString().contains('Timeout') 
+              ? 'Connection timeout. Please check your internet.' 
+              : AppLocalizations.of(context)!.unexpectedError), 
+            backgroundColor: Colors.red
+          ),
         );
       }
     } finally {
@@ -48,6 +53,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     
     return Scaffold(
       body: Center(
@@ -65,16 +71,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               const SizedBox(height: 32),
               Text(
-                AppLocalizations.of(context)!.welcome,
+                l10n.welcome,
                 style: theme.textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Text(
-                'Sign in to your Lönmeter account',
-                style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+                l10n.signInDesc,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  letterSpacing: 0.5,
+                ),
               ),
               const SizedBox(height: 40),
               Card(
@@ -87,27 +96,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         TextFormField(
                           controller: _emailController,
                           decoration: InputDecoration(
-                            labelText: AppLocalizations.of(context)!.email,
+                            labelText: l10n.email,
                             prefixIcon: const Icon(Icons.email_rounded),
                           ),
                           keyboardType: TextInputType.emailAddress,
-                          validator: (v) => v == null || !v.contains('@') ? AppLocalizations.of(context)!.enterValidEmail : null,
+                          validator: (v) => v == null || !v.contains('@') ? l10n.enterValidEmail : null,
                         ),
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: _passwordController,
                           decoration: InputDecoration(
-                            labelText: AppLocalizations.of(context)!.password,
+                            labelText: l10n.password,
                             prefixIcon: const Icon(Icons.lock_rounded),
                           ),
                           obscureText: true,
-                          validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                          validator: (v) => v == null || v.isEmpty ? l10n.required : null,
                         ),
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton(
                             onPressed: () => context.go('/forgot-password'),
-                            child: Text(AppLocalizations.of(context)!.forgotPassword, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                            child: Text(
+                              l10n.forgotPassword, 
+                              style: TextStyle(
+                                color: theme.colorScheme.primary.withValues(alpha: 0.8), 
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -117,7 +133,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             onPressed: _isLoading ? null : _login,
                             child: _isLoading 
                               ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                              : Text(AppLocalizations.of(context)!.login),
+                              : Text(l10n.login),
                           ),
                         ),
                       ],

@@ -2,37 +2,9 @@ import 'package:hive/hive.dart';
 
 part 'earnings_entry.g.dart';
 
-@HiveType(typeId: 2)
-class PlatformModel extends HiveObject {
-  @HiveField(0)
-  final String id;
-  
-  @HiveField(1)
-  String name;
-  
-  @HiveField(2)
-  bool? isLocked;
-
-  PlatformModel({
-    required this.id,
-    required this.name,
-    this.isLocked = false,
-  });
-
-  Map<String, dynamic> toMap() => {
-    'id': id,
-    'name': name,
-    'isLocked': isLocked,
-  };
-
-  factory PlatformModel.fromMap(Map<String, dynamic> map) => PlatformModel(
-    id: map['id'] as String,
-    name: map['name'] as String,
-    isLocked: map['isLocked'] as bool? ?? false,
-  );
-}
 
 @HiveType(typeId: 1)
+
 class EarningsEntry extends HiveObject {
   @HiveField(0)
   final String id;
@@ -76,6 +48,9 @@ class EarningsEntry extends HiveObject {
   @HiveField(13)
   double? platformFee;
 
+  @HiveField(14)
+  String? reference;
+
   EarningsEntry({
     required this.id,
     required this.driverId,
@@ -91,6 +66,7 @@ class EarningsEntry extends HiveObject {
     this.socialFees = 0.0,
     this.appliedPercentage,
     this.platformFee = 0.0,
+    this.reference,
   });
 
   EarningsEntry copyWith({
@@ -141,6 +117,7 @@ class EarningsEntry extends HiveObject {
     'socialFees': socialFees,
     'applied_percentage': appliedPercentage,
     'platform_fee': platformFee,
+    'reference': reference,
   };
 
   factory EarningsEntry.fromMap(Map<String, dynamic> map) => EarningsEntry(
@@ -158,5 +135,26 @@ class EarningsEntry extends HiveObject {
     socialFees: (map['socialFees'] as num?)?.toDouble(),
     appliedPercentage: (map['applied_percentage'] as num?)?.toDouble(),
     platformFee: (map['platform_fee'] as num?)?.toDouble() ?? 0.0,
+    reference: map['reference'] as String?,
   );
+
+  /// Factory to build from the unified earnings_raw Supabase table.
+  /// Maps normalized snake_case column names → EarningsEntry fields.
+  factory EarningsEntry.fromSupabase(Map<String, dynamic> map) {
+    final now = DateTime.now();
+    return EarningsEntry(
+      id: map['id'] as String? ?? 'unknown_${now.millisecondsSinceEpoch}',
+      driverId: map['driver_id'] as String? ?? '',
+      weekNumber: map['week_number'] as int? ?? 0,
+      month: map['entry_month'] as int? ?? now.month,   // renamed column
+      year: map['entry_year'] as int? ?? now.year,       // renamed column
+      platformId: map['platform'] as String? ?? 'bolt',
+      bruttoAmount: (map['brutto_amount'] as num? ?? 0).toDouble(),
+      nettoAmount: (map['net_amount'] as num? ?? 0).toDouble(),
+      moms6: (map['moms_amount'] as num? ?? 0).toDouble(),
+      dricks: (map['dricks'] as num? ?? 0).toDouble(),
+      platformFee: (map['platform_fee'] as num? ?? 0).toDouble(),
+      reference: map['reference'] as String?,
+    );
+  }
 }

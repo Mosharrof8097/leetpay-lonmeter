@@ -29,7 +29,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
         data: {'company_name': _companyController.text.trim()},
-      );
+      ).timeout(const Duration(seconds: 15));
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AppLocalizations.of(context)!.accountCreatedSuccess)),
@@ -45,7 +46,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.unexpectedError), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.unexpectedError), 
+            backgroundColor: Colors.red
+          ),
         );
       }
     } finally {
@@ -56,6 +60,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     
     return Scaffold(
       body: Center(
@@ -74,7 +79,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               ),
               const SizedBox(height: 32),
               Text(
-                AppLocalizations.of(context)!.signUp,
+                l10n.signUp,
                 style: theme.textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.w800,
                   color: Colors.white,
@@ -82,7 +87,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Manage your fleet professionally',
+                l10n.signUpDesc,
                 style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey),
               ),
               const SizedBox(height: 40),
@@ -96,30 +101,30 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         TextFormField(
                           controller: _companyController,
                           decoration: InputDecoration(
-                            labelText: AppLocalizations.of(context)!.companyName,
+                            labelText: l10n.companyName,
                             prefixIcon: const Icon(Icons.business_rounded),
                           ),
-                          validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                          validator: (v) => v == null || v.isEmpty ? l10n.required : null,
                         ),
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: _emailController,
                           decoration: InputDecoration(
-                            labelText: AppLocalizations.of(context)!.email,
+                            labelText: l10n.email,
                             prefixIcon: const Icon(Icons.email_rounded),
                           ),
                           keyboardType: TextInputType.emailAddress,
-                          validator: (v) => v == null || !v.contains('@') ? AppLocalizations.of(context)!.enterValidEmail : null,
+                          validator: (v) => v == null || !v.contains('@') ? l10n.enterValidEmail : null,
                         ),
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: _passwordController,
                           decoration: InputDecoration(
-                            labelText: AppLocalizations.of(context)!.password,
+                            labelText: l10n.password,
                             prefixIcon: const Icon(Icons.lock_rounded),
                           ),
                           obscureText: true,
-                          validator: (v) => v == null || v.length < 6 ? 'Min 6 characters' : null,
+                          validator: (v) => v == null || v.length < 6 ? l10n.minCharacters('6') : null,
                         ),
                         const SizedBox(height: 32),
                         SizedBox(
@@ -128,7 +133,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                             onPressed: _isLoading ? null : _signUp,
                             child: _isLoading 
                               ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                              : Text(AppLocalizations.of(context)!.signUp),
+                              : Text(l10n.signUp),
                           ),
                         ),
                       ],
@@ -139,7 +144,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               const SizedBox(height: 24),
               TextButton(
                 onPressed: () => context.go('/login'),
-                child: Text(AppLocalizations.of(context)!.alreadyHaveAccount, style: const TextStyle(color: Color(0xFF2962FF))),
+                child: Text(l10n.alreadyHaveAccount, style: const TextStyle(color: Color(0xFF2962FF))),
               ),
             ],
           ),

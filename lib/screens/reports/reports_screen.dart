@@ -1,14 +1,13 @@
-import 'package:fleetpay/l10n/app_localizations_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:animate_do/animate_do.dart';
+import 'package:printing/printing.dart';
 import '../../providers/payroll_provider.dart';
-import '../../providers/settings_provider.dart';
-import '../../services/export_service.dart';
-import '../../services/database_service.dart';
+import '../../providers/reports_provider.dart';
 import '../../utils/formatters.dart';
-import 'package:fleetpay/l10n/app_localizations.dart';
 import '../../models/monthly_payroll.dart';
-import 'package:share_plus/share_plus.dart';
+import '../../services/export_service.dart';
 
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
@@ -20,463 +19,424 @@ class ReportsScreen extends ConsumerStatefulWidget {
 class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   int _month = DateTime.now().month;
   int _year = DateTime.now().year;
-  bool _exporting = false;
 
   @override
   Widget build(BuildContext context) {
-    final payrolls = ref.watch(
-      monthlyPayrollProvider((month: _month, year: _year)),
-    );
     final theme = Theme.of(context);
-    final l10n = AppLocalizations.of(context)!;
-
-    double totalBrutto = 0, totalLonekostnad = 0, totalDricks = 0, totalTakeHome = 0;
-    final Map<String, double> platformTotals = {};
+    final isDark = theme.brightness == Brightness.dark;
     
-    for (final p in payrolls) {
-      totalBrutto += p.totalBrutto;
-      totalLonekostnad += p.totalLonekostnad;
-      totalDricks += p.totalDricks;
-      totalTakeHome += p.takeHomePay;
-      p.platformBrutto.forEach((id, amount) {
-        platformTotals[id] = (platformTotals[id] ?? 0) + amount;
-      });
+    // Check if we have settled reports for this period
+    final settledAsync = ref.watch(settledReportsProvider((month: _month, year: _year)));
+    final payrolls = ref.watch(monthlyPayrollProvider((month: _month, year: _year)));
+
+    return settledAsync.when(
+      data: (settledData) {
+        final bool isSettled = settledData.isNotEmpty;
+        
+        double totalGross = 0;
+        double totalProfit = 0;
+        double totalPayout = 0;
+
+        if (isSettled) {
+          for (final s in settledData) {
+            totalGross += (s['brutto'] as num).toDouble();
+            totalProfit += (s['profit'] as num).toDouble();
+            totalPayout += (s['payout'] as num).toDouble();
+          }
+        } else {
+          for (final p in payrolls) {
+            totalGross += p.totalBrutto;
+            totalProfit += p.netProfit;
+            totalPayout += p.takeHomePay;
+          }
+        }
+
+        return Scaffold(
+          backgroundColor: isDark ? const Color(0xFF0A0A0A) : const Color(0xFFF8F9FA),
+          appBar: AppBar(
+            title: Text('REPORTS', style: GoogleFonts.montserrat(fontWeight: FontWeight.w900, letterSpacing: 2, fontSize: 18)),
+            centerTitle: true,
+            actions: [
+              if (isSettled)
+                Padding(
+                  padding: const EdgeInsets.only(right: 16),
+                  child: Chip(
+                    label: const Text('FINALIZED', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
+                    backgroundColor: const Color(0xFF2E7D32),
+                    side: BorderSide.none,
+                    padding: EdgeInsets.zero,
+                  ),
+                ),
+            ],
+          ),
+          body: CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildPeriodSelector(theme, isDark),
+                      const SizedBox(height: 24),
+                      FadeInDown(
+                        duration: const Duration(milliseconds: 500),
+                        child: _buildMainMetrics(totalGross, totalProfit, totalPayout),
+                      ),
+                      const SizedBox(height: 32),
+                      isSettled 
+                        ? _buildSettledTable(settledData, isDark, theme)
+                        : _buildDetailedReportTable(payrolls, isDark, theme),
+                      const SizedBox(height: 100),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () => _exportReport(context, ref, isSettled ? settledData : payrolls),
+            backgroundColor: const Color(0xFF7ED957),
+            foregroundColor: Colors.black,
+            icon: const Icon(Icons.picture_as_pdf_rounded),
+            label: Text(isSettled ? 'EXPORT PDF' : 'PREVIEW PDF', style: const TextStyle(fontWeight: FontWeight.w900)),
+          ),
+        );
+      },
+      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (e, st) => Scaffold(body: Center(child: Text('Error: $e'))),
+    );
+  }
+
+  Widget _buildSettledTable(List<Map<String, dynamic>> data, bool isDark, ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('SETTLED RECORDS', style: GoogleFonts.montserrat(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 1, color: Colors.grey)),
+            const Icon(Icons.verified_user_rounded, color: Color(0xFF2E7D32), size: 20),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+          ),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              columnSpacing: 14,
+              horizontalMargin: 12,
+              columns: const [
+                DataColumn(label: Text('DRIVER')),
+                DataColumn(label: Text('BRUTTO')),
+                DataColumn(label: Text('NET REV')),
+                DataColumn(label: Text('TAX')),
+                DataColumn(label: Text('SOC.FEES')),
+                DataColumn(label: Text('PAYOUT')),
+                DataColumn(label: Text('PROFIT')),
+              ],
+              rows: data.map((s) {
+                return DataRow(
+                  cells: [
+                    DataCell(Text(s['drivers']?['name'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.w800))),
+                    DataCell(Text(formatSEK((s['brutto'] as num).toDouble()))),
+                    DataCell(Text(formatSEK((s['net_revenue'] as num).toDouble()))),
+                    DataCell(Text(formatSEK((s['tax'] as num).toDouble()), style: const TextStyle(color: Colors.redAccent))),
+                    DataCell(Text(formatSEK((s['soc_fees'] as num).toDouble()), style: const TextStyle(color: Colors.orangeAccent))),
+                    DataCell(Text(formatSEK((s['payout'] as num).toDouble()), style: const TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.w900))),
+                    DataCell(Text(formatSEK((s['profit'] as num).toDouble()), style: const TextStyle(fontWeight: FontWeight.w900))),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _exportReport(BuildContext context, WidgetRef ref, List<dynamic> payrolls) async {
+    if (payrolls.isEmpty) return;
+
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      final pdfFile = await ExportService.generateMonthlyPDF(
+        payrolls: payrolls.cast<MonthlyPayroll>(),
+        monthName: _getMonthName(_month),
+        year: _year,
+        companyName: 'Lönmeter AB',
+        labels: {
+          'drivers': 'Drivers',
+          'amount': 'Brutto',
+          'payroll_cost': 'Cost',
+          'monthly_report': 'Report',
+          'summary': 'Summary',
+        },
+      );
+
+      if (mounted) {
+        // Safe way to pop the dialog
+        Navigator.of(context, rootNavigator: true).pop(); 
+        
+        await Printing.layoutPdf(
+          onLayout: (format) => pdfFile.readAsBytes(),
+          name: 'Monthly_Report_${_getMonthName(_month)}_$_year',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        // Ensure dialog is closed even on error if possible
+        try { Navigator.of(context, rootNavigator: true).pop(); } catch (_) {}
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export failed: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  String _getMonthName(int month) {
+    const names = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return names[month - 1];
+  }
+
+  Widget _buildDetailedReportTable(List<MonthlyPayroll> payrolls, bool isDark, ThemeData theme) {
+    if (payrolls.isEmpty) {
+      return Center(
+        child: Column(
+          children: [
+            Icon(Icons.analytics_outlined, size: 80, color: Colors.grey.withValues(alpha: 0.2)),
+            const SizedBox(height: 16),
+            const Text('No data for this period', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      );
     }
 
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.get('monthly_report'))),
-      body: ListView(
-        padding: const EdgeInsets.only(bottom: 32),
-        children: [
-          // Month selector
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(children: [
-              IconButton(
-                icon: const Icon(Icons.chevron_left_rounded),
-                onPressed: () {
-                  setState(() {
-                    _month--;
-                    if (_month < 1) {
-                      _month = 12;
-                      _year--;
-                    }
-                  });
-                },
-              ),
-              Expanded(
-                child: Text(
-                  '${l10n.getMonthName(_month)} $_year',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.chevron_right_rounded),
-                onPressed: () {
-                  setState(() {
-                    _month++;
-                    if (_month > 12) {
-                      _month = 1;
-                      _year++;
-                    }
-                  });
-                },
-              ),
-            ]),
-          ),
-
-          // Summary cards
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Row(children: [
-              _SummaryChip(
-                label: l10n.totalRevenue,
-                value: formatSEK(totalBrutto),
-                color: theme.colorScheme.primary,
-              ),
-              _SummaryChip(
-                label: l10n.payrollCost,
-                value: formatSEK(totalLonekostnad),
-                color: const Color(0xFFD32F2F),
-              ),
-              _SummaryChip(
-                label: l10n.get('dricks_total'),
-                value: formatSEK(totalDricks),
-                color: const Color(0xFF2962FF),
-              ),
-              _SummaryChip(
-                label: 'Utbetalning',
-                value: formatSEK(totalTakeHome),
-                color: const Color(0xFF34A853),
-              ),
-            ].map((w) => Expanded(child: w)).toList()),
-          ),
-
-          // Driver summary table
-          if (payrolls.isNotEmpty) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-              child: Text(
-                l10n.get('per_driver'),
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            Card(
-              margin: const EdgeInsets.symmetric(horizontal: 12),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  headingTextStyle: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                  columnSpacing: 16,
-                  columns: [
-                    DataColumn(label: Text(l10n.drivers)),
-                    DataColumn(label: Text(l10n.showBrutto), numeric: true),
-                    DataColumn(label: Text(l10n.provisionInclSemester), numeric: true),
-                    DataColumn(label: Text(l10n.get('dricks_total')), numeric: true),
-                    DataColumn(label: Text('Net Payout'), numeric: true),
-                    DataColumn(label: Text(l10n.payrollCost), numeric: true),
-                    DataColumn(label: Text(l10n.share), numeric: true),
-                  ],
-                  rows: payrolls.map((p) => DataRow(cells: [
-                    DataCell(Text(
-                      p.driverName,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    )),
-                    DataCell(Text(formatNumber(p.totalBrutto))),
-                    DataCell(Text(formatNumber(p.provisionInklSemester))),
-                    DataCell(Text(formatNumber(p.totalDricks))),
-                    DataCell(Text(
-                      formatNumber(p.takeHomePay),
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    )),
-                    DataCell(Text(formatNumber(p.totalLonekostnad))),
-                    DataCell(Text(
-                      formatPercent(p.effectiveRate),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF2962FF),
-                      ),
-                    )),
-                  ])).toList(),
-                ),
-              ),
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('DETAILED ANALYTICS', style: GoogleFonts.montserrat(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 1, color: Colors.grey)),
+            const Icon(Icons.table_chart_rounded, color: Colors.grey, size: 20),
           ],
-
-          // Platform totals
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-            child: Text(
-              l10n.get('per_platform'),
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+        ),
+        const SizedBox(height: 16),
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
           ),
-          Card(
-            margin: const EdgeInsets.symmetric(horizontal: 12),
-            child: Column(children: [
-              ...ref.watch(platformSettingsProvider).map((p) {
-                final amount = platformTotals[p.id] ?? 0;
-                if (amount == 0 && !(p.isLocked ?? false)) return const SizedBox.shrink();
-                return _PlatformRow(
-                  label: p.name,
-                  amount: amount,
-                  color: _getPlatformColor(p.id),
-                );
-              }),
-              const Divider(height: 0),
-              _PlatformRow(
-                label: l10n.total,
-                amount: platformTotals.values.fold(0.0, (a, b) => a + b),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              columnSpacing: 14,
+              horizontalMargin: 12,
+              headingRowHeight: 50,
+              dataRowMinHeight: 56,
+              dataRowMaxHeight: 56,
+              headingTextStyle: GoogleFonts.montserrat(
+                fontWeight: FontWeight.w900,
+                fontSize: 12,
                 color: theme.colorScheme.primary,
-                bold: true,
               ),
-            ]),
-          ),
+              columns: const [
+                DataColumn(label: Text('DRIVER')),
+                DataColumn(label: Text('BRUTTO')),
+                DataColumn(label: Text('NET REV')),
+                DataColumn(label: Text('MOMS (6%)')),
+                DataColumn(label: Text('SOC. FEES')),
+                DataColumn(label: Text('TAX (30%)')),
+                DataColumn(label: Text('PAYOUT')),
+                DataColumn(label: Text('PROFIT')),
+              ],
+              rows: payrolls.map((p) {
+                final double netRev = p.totalBrutto / 1.06;
+                final double moms = p.totalBrutto - netRev;
+                final double socFees = p.totalLonekostnad * (31.42 / 131.42);
+                final double personalTax = (p.totalLonekostnad - socFees) * 0.30;
+                final double payout = (p.totalLonekostnad - socFees) - personalTax;
+                final double profit = p.totalBrutto * 0.15;
 
-          // Export buttons
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _exporting ? null : () => _exportPDF(payrolls),
-                  icon: const Icon(Icons.picture_as_pdf_rounded),
-                  label: Text(l10n.exportPdf),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: _exporting ? null : () => _exportExcel(payrolls),
-                  icon: const Icon(Icons.table_chart_rounded),
-                  label: Text(l10n.exportExcel),
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48),
-                  ),
-                ),
-              ),
-            ]),
-          ),
-
-          if (payrolls.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(48),
-              child: Column(children: [
-                Icon(
-                  Icons.assessment_outlined,
-                  size: 64,
-                  color: Colors.grey[300],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  l10n.noDataForPeriod,
-                  style: TextStyle(
-                    color: Colors.grey[500],
-                    fontSize: 15,
-                  ),
-                ),
-              ]),
+                return DataRow(
+                  key: ValueKey('report_${p.driverId}_${_month}_$_year'),
+                  cells: [
+                    DataCell(Text(p.driverName, style: const TextStyle(fontWeight: FontWeight.w800))),
+                    DataCell(Text(formatSEK(p.totalBrutto))),
+                    DataCell(Text(formatSEK(netRev))),
+                    DataCell(Text(formatSEK(moms), style: const TextStyle(color: Colors.blueAccent))),
+                    DataCell(Text(formatSEK(socFees), style: const TextStyle(color: Colors.orangeAccent))),
+                    DataCell(Text(formatSEK(personalTax), style: const TextStyle(color: Colors.redAccent))),
+                    DataCell(Text(formatSEK(payout), style: const TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.w900))),
+                    DataCell(Text(formatSEK(profit), style: const TextStyle(fontWeight: FontWeight.w900))),
+                  ],
+                );
+              }).toList(),
             ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPeriodSelector(ThemeData theme, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          IconButton(
+            onPressed: () => setState(() {
+              if (_month == 1) {
+                _month = 12;
+                _year--;
+              } else {
+                _month--;
+              }
+            }),
+            icon: const Icon(Icons.chevron_left_rounded),
+          ),
+          Text(
+            '${_getMonthName(_month).toUpperCase()} $_year',
+            style: GoogleFonts.montserrat(fontWeight: FontWeight.w900, fontSize: 16),
+          ),
+          IconButton(
+            onPressed: () => setState(() {
+              if (_month == 12) {
+                _month = 1;
+                _year++;
+              } else {
+                _month++;
+              }
+            }),
+            icon: const Icon(Icons.chevron_right_rounded),
+          ),
         ],
       ),
     );
   }
 
-  Color _getPlatformColor(String id) {
-    switch (id) {
-      case 'bolt': return const Color(0xFF34A853);
-      case 'uber': return const Color(0xFF424242);
-      case 'wecab': return const Color(0xFF1565C0);
-      default: return Colors.blueGrey;
-    }
-  }
-
-  Future<void> _exportPDF(List<MonthlyPayroll> payrolls) async {
-    setState(() => _exporting = true);
-    final l10n = AppLocalizations.of(context)!;
-    final Map<String, String> labels = {
-      'drivers': l10n.drivers,
-      'amount': l10n.amount,
-      'provision_incl_semester': l10n.provisionInclSemester,
-      'dricks_total': l10n.get('dricks_total'),
-      'payroll_cost': l10n.payrollCost,
-      'revenue_by_platform': l10n.revenueByPlatform,
-      'platform': l10n.platform,
-      'total': l10n.total,
-      'post': 'Post',
-      'excl_semester': l10n.get('excl_semester'),
-      'semester': l10n.semester,
-      'fora': l10n.fora,
-      'arbetsgivaravgifter': l10n.arbetsgivaravgifter,
-      'share_of_revenue': l10n.shareOfRevenue,
-      'show_netto': l10n.showNetto,
-      'share': l10n.share,
-      'monthly_report': l10n.get('monthly_report'),
-    };
-
-    try {
-      final file = await ExportService.generateMonthlyPDF(
-        payrolls: payrolls,
-        monthName: l10n.getMonthName(_month),
-        year: _year,
-        companyName: DatabaseService.getCompanyName(),
-        labels: labels,
-      );
-      if (mounted) {
-        final monthName = l10n.getMonthName(_month);
-        final companyName = DatabaseService.getCompanyName();
-
-        await Share.shareXFiles(
-          [XFile(file.path)], 
-          subject: '${l10n.get('monthly_report')} - $monthName $_year',
-          text: '${l10n.get('monthly_report')} ($companyName)',
-        );
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(l10n.get('pdf_saved').split('{path}').first.trim()),
-              behavior: SnackBarBehavior.floating,
+  Widget _buildMainMetrics(double gross, double profit, double cost) {
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF7ED957), Color(0xFF2E7D32)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppLocalizations.of(context)!
-                .get('error')
-                .replaceAll('{error}', e.toString()),
-            ),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
+            borderRadius: BorderRadius.circular(32),
+            boxShadow: [
+              BoxShadow(color: const Color(0xFF7ED957).withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 10)),
+            ],
           ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _exporting = false);
-    }
-  }
-
-  Future<void> _exportExcel(List<MonthlyPayroll> payrolls) async {
-    setState(() => _exporting = true);
-    final l10n = AppLocalizations.of(context)!;
-    final Map<String, String> labels = {
-      'drivers': l10n.drivers,
-      'amount': l10n.amount,
-      'show_netto': l10n.showNetto,
-      'dricks_total': l10n.get('dricks_total'),
-      'provision_incl_semester': l10n.provisionInclSemester,
-      'excl_semester': l10n.get('excl_semester'),
-      'semester': l10n.semester,
-      'fora': l10n.fora,
-      'arbetsgivaravgifter': l10n.arbetsgivaravgifter,
-      'payroll_cost': l10n.payrollCost,
-      'share': l10n.share,
-      'monthly_report': l10n.get('monthly_report'),
-    };
-
-    try {
-      final file = await ExportService.generateMonthlyExcel(
-        payrolls: payrolls,
-        monthName: l10n.getMonthName(_month),
-        year: _year,
-        companyName: DatabaseService.getCompanyName(),
-        labels: labels,
-      );
-      if (mounted) {
-        final monthName = l10n.getMonthName(_month);
-        final companyName = DatabaseService.getCompanyName();
-
-        await Share.shareXFiles(
-          [XFile(file.path)], 
-          subject: '${l10n.get('monthly_report')} - $monthName $_year',
-          text: '${l10n.get('monthly_report')} ($companyName)',
-        );
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(l10n.get('excel_saved').split('{path}').first.trim()),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppLocalizations.of(context)!
-                .get('error')
-                .replaceAll('{error}', e.toString()),
-            ),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _exporting = false);
-    }
-  }
-}
-
-class _SummaryChip extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-  
-  const _SummaryChip({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border(top: BorderSide(color: color, width: 3)),
-        ),
-        child: Column(children: [
-          Text(
-            label,
-            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-          ),
-          const SizedBox(height: 4),
-          FittedBox(
-            child: Text(
-              value,
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
-                color: color,
+          child: Column(
+            children: [
+              const Text('TOTAL GROSS REVENUE', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w800, fontSize: 12, letterSpacing: 1)),
+              const SizedBox(height: 8),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(formatSEK(gross), style: GoogleFonts.montserrat(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 32)),
               ),
-            ),
+            ],
           ),
-        ]),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(child: _buildSmallMetricCard('Net Profit', formatSEK(profit), Icons.trending_up_rounded, Colors.blueAccent)),
+            const SizedBox(width: 12),
+            Expanded(child: _buildSmallMetricCard('Payroll Cost', formatSEK(cost), Icons.account_tree_rounded, Colors.orangeAccent)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSmallMetricCard(String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 12),
+          Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.grey)),
+          const SizedBox(height: 4),
+          FittedBox(child: Text(value, style: GoogleFonts.montserrat(fontWeight: FontWeight.w900, fontSize: 16))),
+        ],
       ),
     );
   }
-}
 
-class _PlatformRow extends StatelessWidget {
-  final String label;
-  final double amount;
-  final Color color;
-  final bool bold;
-  
-  const _PlatformRow({
-    required this.label,
-    required this.amount,
-    required this.color,
-    this.bold = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      dense: true,
-      leading: Container(
-        width: 12,
-        height: 12,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-        ),
+  Widget _buildDriverPerformanceCard(dynamic payroll, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.05)),
       ),
-      title: Text(
-        label,
-        style: TextStyle(
-          fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
-        ),
-      ),
-      trailing: Text(
-        formatSEK(amount),
-        style: TextStyle(
-          fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
-          color: bold ? color : null,
-        ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: const Color(0xFF7ED957).withValues(alpha: 0.1),
+            child: Text(payroll.driverName[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF2E7D32))),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(payroll.driverName, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                const SizedBox(height: 2),
+                Text('Effective Rate: ${(payroll.effectiveRate * 100).toStringAsFixed(1)}%', style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(formatSEK(payroll.totalBrutto), style: GoogleFonts.montserrat(fontWeight: FontWeight.w900, fontSize: 15)),
+              const Text('REVENUE', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.grey, letterSpacing: 1)),
+            ],
+          ),
+        ],
       ),
     );
   }

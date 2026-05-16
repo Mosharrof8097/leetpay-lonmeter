@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import '../models/mapping_preset.dart';
 import '../services/file_import_service.dart';
 import '../services/database_service.dart';
+import '../services/supabase_service.dart';
 import '../models/driver.dart';
 import 'package:uuid/uuid.dart';
+import 'package:fleetpay/l10n/app_localizations.dart';
+import 'package:fleetpay/l10n/app_localizations_extension.dart';
 
 class AutoMappingDialog extends StatefulWidget {
   final List<String> headers;
@@ -16,102 +20,171 @@ class AutoMappingDialog extends StatefulWidget {
 
 class _AutoMappingDialogState extends State<AutoMappingDialog> {
   final _mapping = ColumnMapping();
-  bool _savePreference = true;
+  List<MappingPreset> _presets = [];
+  MappingPreset? _selectedPreset;
 
   @override
   void initState() {
     super.initState();
+    _loadPresets();
     _initializeMapping();
   }
 
-  void _initializeMapping() {
-    // 1. Try to load saved preference
-    final saved = DatabaseService.getSetting('mapping_${widget.platformId}');
-    if (saved != null) {
-      _mapping.driverNameIdx = saved['driverNameIdx'] ?? -1;
-      _mapping.bruttoIdx = saved['bruttoIdx'] ?? -1;
-      _mapping.nettoIdx = saved['nettoIdx'] ?? -1;
-      _mapping.weekIdx = saved['weekIdx'] ?? -1;
-      _mapping.dricksIdx = saved['dricksIdx'] ?? -1;
-      _mapping.dateIdx = saved['dateIdx'] ?? -1;
-      
-      // Validate that saved indices are still within bounds of current headers
-      if (_mapping.driverNameIdx >= widget.headers.length) _mapping.driverNameIdx = -1;
-      if (_mapping.bruttoIdx >= widget.headers.length) _mapping.bruttoIdx = -1;
-      if (_mapping.nettoIdx >= widget.headers.length) _mapping.nettoIdx = -1;
-      if (_mapping.weekIdx >= widget.headers.length) _mapping.weekIdx = -1;
-      if (_mapping.dricksIdx >= widget.headers.length) _mapping.dricksIdx = -1;
-      if (_mapping.dateIdx >= widget.headers.length) _mapping.dateIdx = -1;
-    }
+  void _loadPresets() {
+    _presets = DatabaseService.getMappingPresets().where((p) => p.platformId == widget.platformId).toList();
+  }
 
-    // 2. If any field is still -1, try to guess based on keywords
+  void _initializeMapping() {
+    // Try to guess based on keywords if no preset is selected
     if (_mapping.driverNameIdx == -1) {
-      _mapping.driverNameIdx = FileImportService.findBestColumnMatch(widget.headers, ['Driver Name', 'driver', 'name', 'förare', 'namn', 'alias']);
+      _mapping.driverNameIdx = FileImportService.findBestColumnMatch(widget.headers, ['Driver Name', 'driver', 'name', 'förare', 'namn', 'alias', 'förarnamn']);
     }
     if (_mapping.bruttoIdx == -1) {
-      _mapping.bruttoIdx = FileImportService.findBestColumnMatch(widget.headers, ['Brutto Amount', 'brutto', 'amount', 'inkört', 'belopp', 'total', 'revenue', 'gross']);
+      _mapping.bruttoIdx = FileImportService.findBestColumnMatch(widget.headers, ['Brutto Amount', 'brutto', 'amount', 'inkört', 'belopp', 'total', 'revenue', 'gross', 'intäkt', 'earnings']);
     }
     if (_mapping.nettoIdx == -1) {
-      _mapping.nettoIdx = FileImportService.findBestColumnMatch(widget.headers, ['Netto Amount', 'netto', 'earnings', 'net', 'payout', 'to pay']);
+      _mapping.nettoIdx = FileImportService.findBestColumnMatch(widget.headers, ['Netto Amount', 'netto', 'earnings', 'net', 'payout', 'to pay', 'utbetalning']);
     }
     if (_mapping.weekIdx == -1) {
-      _mapping.weekIdx = FileImportService.findBestColumnMatch(widget.headers, ['Week', 'week', 'vecka', 'wk']);
+      _mapping.weekIdx = FileImportService.findBestColumnMatch(widget.headers, ['Week', 'week', 'vecka', 'wk', 'v.']);
     }
     if (_mapping.dricksIdx == -1) {
       _mapping.dricksIdx = FileImportService.findBestColumnMatch(widget.headers, ['Tips', 'tips', 'dricks', 'gratuity']);
     }
     if (_mapping.dateIdx == -1) {
-      _mapping.dateIdx = FileImportService.findBestColumnMatch(widget.headers, ['Date', 'date', 'datum', 'tid', 'time']);
+      _mapping.dateIdx = FileImportService.findBestColumnMatch(widget.headers, ['Date', 'date', 'datum', 'tid', 'time', 'period']);
+    }
+    if (_mapping.feeIdx == -1) {
+      _mapping.feeIdx = FileImportService.findBestColumnMatch(widget.headers, ['Fee', 'avgift', 'service fee', 'commission']);
+    }
+    if (_mapping.referenceIdx == -1) {
+      _mapping.referenceIdx = FileImportService.findBestColumnMatch(widget.headers, ['Reference', 'ref', 'order id', 'trip id', 'id']);
+    }
+  }
+
+  void _applyPreset(MappingPreset preset) {
+    setState(() {
+      _selectedPreset = preset;
+      _mapping.driverNameIdx = preset.mapping['driverNameIdx'] ?? -1;
+      _mapping.bruttoIdx = preset.mapping['bruttoIdx'] ?? -1;
+      _mapping.nettoIdx = preset.mapping['nettoIdx'] ?? -1;
+      _mapping.weekIdx = preset.mapping['weekIdx'] ?? -1;
+      _mapping.dricksIdx = preset.mapping['dricksIdx'] ?? -1;
+      _mapping.dateIdx = preset.mapping['dateIdx'] ?? -1;
+      _mapping.feeIdx = preset.mapping['feeIdx'] ?? -1;
+      _mapping.referenceIdx = preset.mapping['referenceIdx'] ?? -1;
+    });
+  }
+
+  Future<void> _saveAsPreset() async {
+    final nameController = TextEditingController();
+    final l10n = context.l10n;
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.savePreset),
+        content: TextField(
+          controller: nameController,
+          decoration: InputDecoration(labelText: l10n.presetName, hintText: 'e.g., Standard Uber'),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.cancel)),
+          TextButton(onPressed: () => Navigator.pop(ctx, nameController.text), child: Text(l10n.add)),
+        ],
+      ),
+    );
+
+    if (name != null && name.isNotEmpty) {
+      final preset = MappingPreset(
+        id: const Uuid().v4(),
+        name: name,
+        mapping: _mapping.toMap(),
+        platformId: widget.platformId,
+      );
+      await DatabaseService.saveMappingPreset(preset);
+      // Also try to save to Supabase if possible
+      try {
+        await SupabaseService.saveMappingPreset(preset);
+      } catch (e) {
+        debugPrint('Failed to sync preset to Supabase: $e');
+      }
+      setState(() {
+        _loadPresets();
+        _selectedPreset = preset;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     return AlertDialog(
-      title: const Text('Map Columns'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildDropdown('Driver Name', _mapping.driverNameIdx, (v) => setState(() => _mapping.driverNameIdx = v!)),
-            _buildDropdown('Brutto Amount', _mapping.bruttoIdx, (v) => setState(() => _mapping.bruttoIdx = v!)),
-            _buildDropdown('Netto/Earnings (Required for fee deduction)', _mapping.nettoIdx, (v) => setState(() => _mapping.nettoIdx = v!)),
-            _buildDropdown('Week Number', _mapping.weekIdx, (v) => setState(() => _mapping.weekIdx = v!)),
-            _buildDropdown('Tips (Optional)', _mapping.dricksIdx, (v) => setState(() => _mapping.dricksIdx = v!)),
-            _buildDropdown('Date (If no week)', _mapping.dateIdx, (v) => setState(() => _mapping.dateIdx = v!)),
-            const SizedBox(height: 16),
-            CheckboxListTile(
-              title: const Text('Save mapping for this platform', style: TextStyle(fontSize: 13)),
-              value: _savePreference,
-              onChanged: (v) => setState(() => _savePreference = v!),
-              contentPadding: EdgeInsets.zero,
-            ),
-          ],
+      title: Row(
+        children: [
+          const Icon(Icons.map_outlined),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(l10n.columnMapping, overflow: TextOverflow.ellipsis),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: MediaQuery.of(context).size.width * 0.9,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_presets.isNotEmpty) ...[
+                DropdownButtonFormField<MappingPreset>(
+                  value: _selectedPreset,
+                  decoration: InputDecoration(
+                    labelText: l10n.loadPreset,
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.history),
+                  ),
+                  items: _presets.map((p) => DropdownMenuItem(value: p, child: Text(p.name))).toList(),
+                  onChanged: (v) => _applyPreset(v!),
+                ),
+                const SizedBox(height: 20),
+                const Divider(),
+                const SizedBox(height: 10),
+              ],
+              _buildDropdown(l10n.drivers, _mapping.driverNameIdx, (v) => setState(() => _mapping.driverNameIdx = v!)),
+              _buildDropdown(l10n.totalRevenue, _mapping.bruttoIdx, (v) => setState(() => _mapping.bruttoIdx = v!)),
+              _buildDropdown('${l10n.showNetto} (Optional)', _mapping.nettoIdx, (v) => setState(() => _mapping.nettoIdx = v!)),
+              _buildDropdown(l10n.date, _mapping.dateIdx, (v) => setState(() => _mapping.dateIdx = v!)),
+              _buildDropdown('${l10n.week} (Backup)', _mapping.weekIdx, (v) => setState(() => _mapping.weekIdx = v!)),
+              _buildDropdown('${l10n.platform} (Optional)', _mapping.feeIdx, (v) => setState(() => _mapping.feeIdx = v!)),
+              _buildDropdown('${l10n.tipsTotal} (Optional)', _mapping.dricksIdx, (v) => setState(() => _mapping.dricksIdx = v!)),
+              _buildDropdown('${l10n.status} (Optional)', _mapping.referenceIdx, (v) => setState(() => _mapping.referenceIdx = v!)),
+            ],
+          ),
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(), 
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: _mapping.isValid ? () {
-            final navigator = Navigator.of(context);
-            if (_savePreference) {
-              DatabaseService.saveSetting('mapping_${widget.platformId}', _mapping.toMap());
-            }
-            if (navigator.canPop()) {
-              navigator.pop(_mapping);
-            }
-          } : null,
-          child: const Text('Start Import'),
+        Wrap(
+          alignment: WrapAlignment.end,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            TextButton(onPressed: _saveAsPreset, child: Text(l10n.savePreset)),
+            TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(l10n.cancel)),
+            FilledButton(
+              onPressed: _mapping.isValid ? () => Navigator.of(context).pop(_mapping) : null,
+              child: Text(l10n.preview),
+            ),
+          ],
         ),
       ],
+      actionsPadding: const EdgeInsets.all(16),
     );
   }
 
   Widget _buildDropdown(String label, int current, ValueChanged<int?> onChanged) {
+    final l10n = context.l10n;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: DropdownButtonFormField<int>(
@@ -123,7 +196,7 @@ class _AutoMappingDialogState extends State<AutoMappingDialog> {
         ),
         isExpanded: true,
         items: [
-          const DropdownMenuItem(value: -1, child: Text('None')),
+          DropdownMenuItem(value: -1, child: Text(l10n.notMapped)),
           ...List.generate(widget.headers.length, (i) {
             final header = widget.headers[i];
             return DropdownMenuItem(
@@ -137,6 +210,112 @@ class _AutoMappingDialogState extends State<AutoMappingDialog> {
     );
   }
 }
+
+class ImportPreviewDialog extends StatelessWidget {
+  final List<Map<String, dynamic>> previewData;
+  final String fileName;
+
+  const ImportPreviewDialog({super.key, required this.previewData, required this.fileName});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = context.l10n;
+    final validRows = previewData.where((r) => r['isValid']).length;
+    final previewRows = previewData.length;
+
+    return AlertDialog(
+      title: Row(
+        children: [
+          const Icon(Icons.preview),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text('${l10n.preview}: $fileName', overflow: TextOverflow.ellipsis),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: MediaQuery.of(context).size.width * 0.9,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, size: 20, color: Colors.green),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Showing first $previewRows rows. $validRows/${previewData.length} valid.',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Flexible(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.vertical,
+                  child: DataTable(
+                    columnSpacing: 16,
+                    horizontalMargin: 8,
+                    columns: [
+                      const DataColumn(label: Text('Row')),
+                      DataColumn(label: Text(l10n.drivers)),
+                      const DataColumn(label: Text('Brutto')),
+                      DataColumn(label: Text(l10n.status)),
+                    ],
+                    rows: previewData.map((row) {
+                      final bool isValid = row['isValid'];
+                      return DataRow(
+                        cells: [
+                          DataCell(Text(row['row'].toString())),
+                          DataCell(Text(row['driver'], overflow: TextOverflow.ellipsis)),
+                          DataCell(Text(row['brutto'].toString())),
+                          DataCell(Icon(
+                            isValid ? Icons.check_circle : Icons.error,
+                            color: isValid ? Colors.green : Colors.red,
+                            size: 18,
+                          )),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ),
+            if (validRows < previewData.length) ...[
+              const SizedBox(height: 16),
+              Text(
+                l10n.incompleteRowsSkipped,
+                style: theme.textTheme.bodySmall?.copyWith(color: Colors.orange[800]),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l10n.back)),
+        FilledButton(
+          onPressed: validRows > 0 ? () => Navigator.of(context).pop(true) : null,
+          child: Text(l10n.startImport),
+        ),
+      ],
+    );
+  }
+}
+
+
 
 class NameMismatchDialog extends StatefulWidget {
   final String unmatchedName;
@@ -152,6 +331,7 @@ class _NameMismatchDialogState extends State<NameMismatchDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final drivers = DatabaseService.getActiveDrivers();
     
     // Safety check
@@ -160,19 +340,27 @@ class _NameMismatchDialogState extends State<NameMismatchDialog> {
     }
 
     return AlertDialog(
-      title: const Text('Unmatched Driver'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+      title: Row(
         children: [
-          Text("Driver '${widget.unmatchedName}' from file not found."),
-          const SizedBox(height: 16),
-          const Text('Link to existing:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          const Icon(Icons.person_search),
+          const SizedBox(width: 12),
+          Expanded(child: Text(l10n.unmatchedDriver, overflow: TextOverflow.ellipsis)),
+        ],
+      ),
+      content: SizedBox(
+        width: MediaQuery.of(context).size.width * 0.9,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l10n.driverNotFound(widget.unmatchedName), style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            Text(l10n.linkToExisting, style: const TextStyle(fontSize: 12)),
           DropdownButtonFormField<String>(
             value: _selectedDriverId,
             items: drivers.map((d) => DropdownMenuItem(value: d.id, child: Text(d.name))).toList(),
             onChanged: (v) => setState(() => _selectedDriverId = v),
-            decoration: const InputDecoration(hintText: 'Select Driver'),
+            decoration: InputDecoration(hintText: l10n.drivers),
           ),
           const SizedBox(height: 16),
           const Center(child: Text('OR')),
@@ -187,25 +375,28 @@ class _NameMismatchDialogState extends State<NameMismatchDialog> {
                   name: widget.unmatchedName,
                   commissionRate: DatabaseService.getDefaultCommissionRate(),
                 );
-                await DatabaseService.addDriver(driver);
+                await SupabaseService.upsertDriver(driver);
+                await SupabaseService.saveDriverAlias(widget.unmatchedName, newId);
                 await DatabaseService.saveDriverAlias(widget.unmatchedName, newId);
                 if (!context.mounted) return;
                 Navigator.pop(context, newId);
               },
-              child: const Text('Create New Driver'),
+              child: Text(l10n.createNewDriver),
             ),
           ),
-        ],
+          ],
+        ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Skip Row')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.skipRow)),
         FilledButton(
           onPressed: _selectedDriverId == null ? null : () async {
+            await SupabaseService.saveDriverAlias(widget.unmatchedName, _selectedDriverId!);
             await DatabaseService.saveDriverAlias(widget.unmatchedName, _selectedDriverId!);
             if (!context.mounted) return;
             Navigator.pop(context, _selectedDriverId);
           },
-          child: const Text('Map & Continue'),
+          child: Text(l10n.mapAndContinue),
         ),
       ],
     );

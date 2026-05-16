@@ -22,6 +22,7 @@ class ColumnMapping {
   int dricksIdx = -1;
   int dateIdx = -1;
   int feeIdx = -1;
+  int referenceIdx = -1;
 
   bool get isValid => driverNameIdx != -1 && bruttoIdx != -1 && (weekIdx != -1 || dateIdx != -1);
 
@@ -33,6 +34,7 @@ class ColumnMapping {
     'dricksIdx': dricksIdx,
     'dateIdx': dateIdx,
     'feeIdx': feeIdx,
+    'referenceIdx': referenceIdx,
   };
 
   static ColumnMapping fromMap(Map<dynamic, dynamic> map) {
@@ -44,6 +46,7 @@ class ColumnMapping {
     m.dricksIdx = map['dricksIdx'] ?? -1;
     m.dateIdx = map['dateIdx'] ?? -1;
     m.feeIdx = map['feeIdx'] ?? -1;
+    m.referenceIdx = map['referenceIdx'] ?? -1;
     return m;
   }
 }
@@ -56,21 +59,33 @@ class FileImportService {
       if (filePath.endsWith('.xlsx')) {
         final bytes = await File(filePath).readAsBytes();
         final excel = Excel.decodeBytes(bytes);
-        if (excel.tables.isEmpty) return null;
+        
+        if (excel.tables.isEmpty) {
+          debugPrint('Excel file has no visible sheets.');
+          return null;
+        }
+        
         final table = excel.tables.values.first;
         if (table.rows.isEmpty) return null;
-        return table.rows.first.map((c) => c?.value?.toString() ?? '').toList();
+        
+        final firstRow = table.rows.first;
+        return firstRow.map((c) => c?.value?.toString() ?? '').toList();
       } else if (filePath.endsWith('.csv')) {
         final input = File(filePath).openRead();
         final fields = await input
             .transform(utf8.decoder)
-            .handleError((_) => utf8.decode([0xEF, 0xBB, 0xBF])) // Handle potential BOM
+            .handleError((_) => utf8.decode([0xEF, 0xBB, 0xBF]))
             .transform(const CsvDecoder())
             .first;
-        return fields.map((e) => e.toString()).toList();
+        return fields.map((e) => e?.toString() ?? '').toList();
       }
-    } catch (e) {
+    } catch (e, stack) {
+      if (e is TypeError || e.toString().contains('Null check operator')) {
+        debugPrint('Excel Decoding Error: The file format is too complex or incompatible.');
+        throw Exception('This Excel file format is not supported. Please save it as a CSV file and try again.');
+      }
       debugPrint('Error getting headers: $e');
+      debugPrint('Stack trace: $stack');
     }
     return null;
   }
@@ -86,6 +101,7 @@ class FileImportService {
 
     int importedCount = 0;
     double totalBrutto = 0;
+    final List<EarningsEntry> entries = [];
     final importId = _uuid.v4();
     final now = DateTime.now();
 
@@ -100,35 +116,56 @@ class FileImportService {
       }
 
       final rawName = getVal(mapping.driverNameIdx);
-      final rawBrutto = getVal(mapping.bruttoIdx).replaceAll(RegExp(r'\s+'), '').replaceAll(',', '.');
-      final rawNetto = getVal(mapping.nettoIdx).replaceAll(RegExp(r'\s+'), '').replaceAll(',', '.');
-      final rawDricks = getVal(mapping.dricksIdx).replaceAll(RegExp(r'\s+'), '').replaceAll(',', '.');
-      final rawFee = getVal(mapping.feeIdx).replaceAll(RegExp(r'\s+'), '').replaceAll(',', '.');
+      final rawBrutto = _cleanNumericString(getVal(mapping.bruttoIdx));
+      final rawNetto = _cleanNumericString(getVal(mapping.nettoIdx));
+      final rawDricks = _cleanNumericString(getVal(mapping.dricksIdx));
+      final rawFee = _cleanNumericString(getVal(mapping.feeIdx));
+      final reference = getVal(mapping.referenceIdx);
       
-      if (rawName.isEmpty) continue;
-
-      // 1. Resolve Name - Check Supabase
-      String? driverId;
-      double appliedRate = 0.43;
-      final existingDriver = await SupabaseService.getDriverByName(rawName);
-      
-      if (existingDriver != null) {
-        driverId = existingDriver.id;
-        appliedRate = existingDriver.commissionRate;
-      } else {
-        // AUTO-CREATE Driver
-        final newId = _uuid.v4();
-        appliedRate = DatabaseService.getDefaultCommissionRate();
-        await SupabaseService.upsertDriver(Driver(
-          id: newId,
-          name: rawName,
-          commissionRate: appliedRate,
-        ));
-        driverId = newId;
-        debugPrint('Auto-created driver: $rawName ($newId)');
+      if (rawName.isEmpty) {
+        debugPrint('Skipping row $i: Missing driver name');
+        continue;
       }
 
-      if (driverId == null) continue;
+      // 1. Resolve Name - Check Alias first, then Supabase
+      String? driverId;
+      double appliedRate = DatabaseService.getDefaultCommissionRate();
+      
+      // Check Alias Resolver first (Try Supabase then local Hive backup)
+      String? aliasedDriverId = await SupabaseService.getDriverIdFromAlias(rawName);
+      aliasedDriverId ??= DatabaseService.getDriverIdFromAlias(rawName);
+      
+      if (aliasedDriverId != null) {
+        final driver = await SupabaseService.getDriverById(aliasedDriverId);
+        if (driver != null) {
+          driverId = driver.id;
+          appliedRate = driver.commissionRate;
+        }
+      }
+
+      if (driverId == null) {
+        final existingDriver = await SupabaseService.getDriverByName(rawName);
+        if (existingDriver != null) {
+          driverId = existingDriver.id;
+          appliedRate = existingDriver.commissionRate;
+        } else {
+          // INTERACTIVE Alias Resolver or Auto-create
+          final resolvedId = await onNameMismatch(rawName);
+          if (resolvedId != null) {
+            driverId = resolvedId;
+            final d = await SupabaseService.getDriverById(driverId);
+            appliedRate = d?.commissionRate ?? appliedRate;
+          } else {
+            // Last resort: skip if not resolved
+            continue;
+          }
+        }
+      }
+
+      if (driverId == null) {
+        debugPrint('Skipping row $i: Could not resolve driver $rawName');
+        continue;
+      }
 
       final brutto = double.tryParse(rawBrutto) ?? 0.0;
       final csvNetto = double.tryParse(rawNetto) ?? 0.0;
@@ -141,7 +178,7 @@ class FileImportService {
       
       if (mapping.dateIdx != -1) {
         final dateStr = getVal(mapping.dateIdx);
-        final date = DateTime.tryParse(dateStr);
+        final date = _parseDate(dateStr);
         if (date != null) {
           week = _getIsoWeekNumber(date);
           entryMonth = date.month;
@@ -153,25 +190,31 @@ class FileImportService {
         week = int.tryParse(getVal(mapping.weekIdx)) ?? 0;
       }
 
-      if (brutto == 0) continue;
+      if (brutto == 0) {
+        debugPrint('Skipping row $i: Zero earnings');
+        continue;
+      }
 
       // Calculate Netto (Inkomst)
       // If the CSV has a Netto column (which usually has platform fees deducted), use it.
       // Otherwise, we calculate it from Brutto.
-      // NOTE: In both cases, we must divide by 1.06 to get the amount before Swedish VAT.
       double netto;
       if (mapping.nettoIdx != -1 && csvNetto > 0) {
         netto = csvNetto / (1 + kMoms6);
       } else {
-        // Correct Dynamic Logic: Netto = (Brutto - Actual Fee) / 1.06
         final actualGross = brutto - platformFee;
         netto = actualGross / (1 + kMoms6);
       }
       
-      final moms = (brutto) - (brutto / (1 + kMoms6)); // Total Moms from Gross
+      final moms = (brutto) - (brutto / (1 + kMoms6));
+
+      // 2. Generate Deterministic ID (Duplicate Protection)
+      final deterministicId = reference.isNotEmpty 
+          ? '${platformId}_${reference.replaceAll(RegExp(r'\s+'), '')}'
+          : _uuid.v5(Uuid.NAMESPACE_URL, '$platformId-$driverId-$entryYear-$entryMonth-$week-$brutto');
 
       final entry = EarningsEntry(
-        id: _uuid.v4(), 
+        id: deterministicId, 
         driverId: driverId,
         weekNumber: week,
         month: entryMonth,
@@ -183,14 +226,17 @@ class FileImportService {
         dricks: dricks,
         appliedPercentage: appliedRate,
         platformFee: platformFee,
+        reference: reference,
       );
 
-      await SupabaseService.saveEarnings(entry);
+      entries.add(entry);
       totalBrutto += brutto;
       importedCount++;
     }
 
-    if (importedCount > 0) {
+    if (entries.isNotEmpty) {
+      await SupabaseService.saveEarningsBatch(entries);
+      
       await SupabaseService.saveImportHistory(ImportHistoryModel(
         id: importId,
         fileName: filePath.split('/').last,
@@ -226,7 +272,11 @@ class FileImportService {
     final excel = Excel.decodeBytes(bytes);
     if (excel.tables.isEmpty) return [];
     final table = excel.tables.values.first;
-    return table.rows.map((r) => r.map((c) => c?.value).toList()).toList();
+    
+    return table.rows.map((r) {
+      // Ensure r is not null before mapping
+      return r.map((c) => c?.value).toList();
+    }).toList();
   }
 
   static List<List<dynamic>> _parseCsv(String content) {
@@ -257,6 +307,91 @@ class FileImportService {
       }
     }
     return -1;
+  }
+
+  static String _cleanNumericString(String value) {
+    if (value.isEmpty) return '0.0';
+    
+    String cleaned = value.trim();
+    // Handle trailing minus (e.g. "100.00-")
+    if (cleaned.endsWith('-')) {
+      cleaned = '-' + cleaned.substring(0, cleaned.length - 1);
+    }
+    
+    // Remove everything except numbers, dots, commas, and negative signs
+    cleaned = cleaned.replaceAll(RegExp(r'[^0-9.,-]'), '');
+    // Replace comma with dot for decimal separation
+    cleaned = cleaned.replaceAll(',', '.');
+    // Ensure only the last dot is kept if there are multiple (thousands separators)
+    if (cleaned.split('.').length > 2) {
+      int lastDotIndex = cleaned.lastIndexOf('.');
+      cleaned = cleaned.substring(0, lastDotIndex).replaceAll('.', '') + cleaned.substring(lastDotIndex);
+    }
+    return cleaned;
+  }
+
+  static DateTime? _parseDate(String dateStr) {
+    if (dateStr.isEmpty) return null;
+    
+    // Try standard DateTime.tryParse
+    DateTime? parsed = DateTime.tryParse(dateStr);
+    if (parsed != null) return parsed.toUtc();
+
+    // Try common formats
+    final formats = [
+      'yyyy-MM-dd',
+      'dd/MM/yyyy',
+      'MM/dd/yyyy',
+      'dd.MM.yyyy',
+      'yyyy/MM/dd',
+      'MMM dd, yyyy',
+      'dd MMM yyyy',
+      'yyyy-MM-dd HH:mm:ss',
+      'dd-MM-yyyy',
+    ];
+
+    for (final format in formats) {
+      try {
+        return DateFormat(format).parse(dateStr).toUtc();
+      } catch (_) {}
+    }
+
+    return null;
+  }
+
+  static Future<List<Map<String, dynamic>>> getPreviewData(String filePath, ColumnMapping mapping) async {
+    final data = await _readAllRows(filePath);
+    if (data == null || data.length < 2) return [];
+
+    List<Map<String, dynamic>> preview = [];
+    int rowCount = data.length > 6 ? 6 : data.length;
+
+    for (int i = 1; i < rowCount; i++) {
+      final row = data[i];
+      String getVal(int idx) {
+        if (idx == -1 || idx >= row.length) return '';
+        return row[idx]?.toString().trim() ?? '';
+      }
+
+      final rawName = getVal(mapping.driverNameIdx);
+      final rawBrutto = _cleanNumericString(getVal(mapping.bruttoIdx));
+      final dateStr = mapping.dateIdx != -1 ? getVal(mapping.dateIdx) : '';
+      
+      final brutto = double.tryParse(rawBrutto) ?? 0.0;
+      final date = _parseDate(dateStr);
+
+      bool isValid = rawName.isNotEmpty && brutto > 0 && (date != null || mapping.weekIdx != -1);
+
+      preview.add({
+        'row': i,
+        'driver': rawName,
+        'brutto': brutto,
+        'date': date?.toIso8601String() ?? dateStr,
+        'isValid': isValid,
+        'originalRow': row,
+      });
+    }
+    return preview;
   }
 }
 

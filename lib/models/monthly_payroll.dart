@@ -54,4 +54,7 @@ class MonthlyPayroll {
     this.platformNetto = const {},
     this.platformBrutto = const {},
   });
+
+  double get momsAmount => totalMoms;
+  double get totalTips => totalDricks;
 }

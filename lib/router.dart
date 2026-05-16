@@ -4,19 +4,26 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fleetpay/l10n/app_localizations.dart';
 import 'screens/dashboard/dashboard_screen.dart';
+import 'screens/calculation/calculation_screen.dart';
 import 'screens/drivers/drivers_screen.dart';
 import 'screens/drivers/driver_detail_screen.dart';
 import 'screens/drivers/add_driver_screen.dart';
 import 'screens/earnings/earnings_screen.dart';
-import 'screens/tax_calculator/tax_calculator_screen.dart';
+
 import 'screens/reports/reports_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/signup_screen.dart';
 import 'screens/auth/forgot_password_screen.dart';
+import 'screens/data_import/data_import_screen.dart';
+import 'screens/bolt/bolt_fleet_dashboard.dart';
+import 'screens/bolt/bolt_admin_dashboard.dart';
+import 'screens/settings/integration_settings_screen.dart';
 import 'providers/auth_provider.dart';
 
 import 'screens/splash/splash_screen.dart';
+
+import 'screens/drivers/driver_profile_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -70,18 +77,23 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const DashboardScreen(),
           ),
           GoRoute(
-            path: '/drivers',
-            builder: (_, __) => const DriversScreen(),
+            path: '/calculation',
+            builder: (_, __) => const CalculationScreen(),
             routes: [
               GoRoute(
-                path: 'add',
+                path: 'manage-drivers',
+                parentNavigatorKey: _rootNavigatorKey,
+                builder: (_, __) => const DriversScreen(),
+              ),
+              GoRoute(
+                path: 'add-driver',
                 parentNavigatorKey: _rootNavigatorKey,
                 builder: (_, __) => const AddDriverScreen(),
               ),
               GoRoute(
-                path: ':id',
+                path: 'driver/:id',
                 parentNavigatorKey: _rootNavigatorKey,
-                builder: (_, state) => DriverDetailScreen(
+                builder: (_, state) => DriverProfileScreen(
                   driverId: state.pathParameters['id']!,
                 ),
               ),
@@ -98,13 +110,28 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/settings',
             builder: (_, __) => const SettingsScreen(),
+            routes: [
+              GoRoute(
+                path: 'integration',
+                builder: (_, __) => const IntegrationSettingsScreen(),
+              ),
+            ],
+          ),
+          GoRoute(
+            path: '/bolt-fleet',
+            builder: (_, __) => const BoltFleetDashboard(),
+          ),
+          GoRoute(
+            path: '/bolt-admin',
+            builder: (_, __) => const BoltAdminDashboard(),
+          ),
+          GoRoute(
+            path: '/import',
+            builder: (_, __) => const DataImportScreen(),
           ),
         ],
       ),
-      GoRoute(
-        path: '/tax-calculator',
-        builder: (_, __) => const TaxCalculatorScreen(),
-      ),
+
     ],
   );
 });
@@ -116,8 +143,7 @@ class ScaffoldWithNav extends StatelessWidget {
   static int _calcIndex(BuildContext context) {
     final loc = GoRouterState.of(context).uri.toString();
     if (loc.startsWith('/dashboard')) return 0;
-    if (loc.startsWith('/drivers')) return 1;
-    if (loc.startsWith('/earnings')) return 2;
+    if (loc.startsWith('/calculation')) return 1;
     if (loc.startsWith('/reports')) return 3;
     if (loc.startsWith('/settings')) return 4;
     return 0;
@@ -132,18 +158,18 @@ class ScaffoldWithNav extends StatelessWidget {
     return Scaffold(
       body: child,
       floatingActionButton: FloatingActionButton(
-        heroTag: 'add_earning_fab', // Fix: Prevents Hero tag collision crash
-        onPressed: () => context.go('/earnings'),
+        heroTag: 'add_earning_fab',
+        onPressed: () => context.go('/calculation/manage-drivers'),
         backgroundColor: theme.colorScheme.primary,
         shape: const CircleBorder(),
         elevation: 6,
-        child: const Icon(Icons.add_rounded, color: Colors.white, size: 32),
+        child: const Icon(Icons.add_rounded, color: Colors.black, size: 32),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(), // Creates the beautiful notch
+        shape: const CircularNotchedRectangle(),
         notchMargin: 8.0,
-        clipBehavior: Clip.antiAlias, // Ensures smooth rounded corners
+        clipBehavior: Clip.antiAlias,
         padding: const EdgeInsets.symmetric(horizontal: 8),
         height: 65,
         child: Row(
@@ -158,12 +184,12 @@ class ScaffoldWithNav extends StatelessWidget {
             ),
             _buildNavItem(
               context,
-              icon: Icons.people_rounded,
-              label: l10n.drivers,
+              icon: Icons.calculate_rounded,
+              label: 'CALCULATOR',
               isSelected: idx == 1,
-              onTap: () => context.go('/drivers'),
+              onTap: () => context.go('/calculation'),
             ),
-            const SizedBox(width: 48), // Spacer for the FAB in the notch
+            const SizedBox(width: 48),
             _buildNavItem(
               context,
               icon: Icons.assessment_rounded,

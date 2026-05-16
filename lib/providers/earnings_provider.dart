@@ -28,7 +28,11 @@ class EarningsNotifier extends StateNotifier<List<EarningsEntry>> {
   }
 
   Future<void> _load() async { 
-    state = await SupabaseService.getEarnings(); 
+    final rawList = await SupabaseService.getEarnings();
+    state = rawList
+        .cast<Map<String, dynamic>>()
+        .map((row) => EarningsEntry.fromSupabase(row))
+        .toList();
   }
 
   Future<void> addEarnings({

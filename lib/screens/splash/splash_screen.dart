@@ -38,20 +38,39 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0A),
+      backgroundColor: const Color(0xFFF8F9FA),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             FadeInDown(
               duration: const Duration(milliseconds: 1000),
-              child: Image.asset(
-                'assets/images/logo.png',
-                height: 180,
-                width: 180,
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF1A1A1A),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 30,
+                      spreadRadius: 10,
+                      offset: const Offset(0, 15),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(90),
+                  child: Image.asset(
+                    'assets/images/logo.png',
+                    height: 110,
+                    width: 110,
+                    fit: BoxFit.contain,
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
             FadeInUp(
               duration: const Duration(milliseconds: 1000),
               delay: const Duration(milliseconds: 500),
@@ -61,8 +80,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 style: TextStyle(
                   fontFamily: 'Montserrat',
                   fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey[400],
+                  fontWeight: FontWeight.w700,
+                  color: Colors.blueGrey.shade800,
                   letterSpacing: 2.5,
                 ),
               ),

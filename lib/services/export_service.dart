@@ -18,6 +18,7 @@ class ExportService {
     required String companyName,
     required Map<String, String> labels,
   }) async {
+
     final pdf = pw.Document();
     final font = await PdfGoogleFonts.robotoRegular();
     final fontBold = await PdfGoogleFonts.robotoBold();
@@ -107,9 +108,8 @@ class ExportService {
 
   static pw.Widget _buildPlatformSummary(List<MonthlyPayroll> payrolls, pw.TextStyle baseStyle, pw.TextStyle boldStyle, Map<String, String> labels) {
     final Map<String, double> platformTotals = {};
-    final platforms = DatabaseService.getAllPlatforms();
-    
     double totalAll = 0;
+    
     for (final p in payrolls) {
       p.platformBrutto.forEach((id, amount) {
         platformTotals[id] = (platformTotals[id] ?? 0) + amount;
@@ -118,8 +118,8 @@ class ExportService {
     }
 
     final tableData = platformTotals.entries.map((e) {
-      final pModel = platforms.firstWhere((p) => p.id == e.key, orElse: () => PlatformModel(id: e.key, name: e.key));
-      return [pModel.name, formatNumber(e.value)];
+      final name = e.key[0].toUpperCase() + e.key.substring(1).toLowerCase();
+      return [name, formatNumber(e.value)];
     }).toList();
     
     tableData.add([labels['total'] ?? 'Totalt', formatNumber(totalAll)]);

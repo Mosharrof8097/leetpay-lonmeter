@@ -1,16 +1,25 @@
 import 'package:fleetpay/l10n/app_localizations_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../providers/driver_provider.dart';
 import '../../providers/earnings_provider.dart';
 import '../../providers/payroll_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../models/earnings_entry.dart';
-import '../../utils/formatters.dart';
+import '../../../utils/formatters.dart';
 import 'package:fleetpay/l10n/app_localizations.dart';
 import '../../widgets/platform_badge.dart';
 import '../../widgets/payroll_summary_card.dart';
 import '../../widgets/weekly_earnings_table.dart';
+import '../../providers/bolt_trips_provider.dart';
+import '../../providers/platform_config_provider.dart';
+
+
+import '../../models/bolt_trip.dart';
+import '../../models/platform_config.dart';
+import '../../models/driver.dart';
+
 
 class DriverDetailScreen extends ConsumerStatefulWidget {
   final String driverId;
@@ -29,8 +38,8 @@ class _DriverDetailScreenState extends ConsumerState<DriverDetailScreen> {
   Widget build(BuildContext context) {
     final drivers = ref.watch(driverProvider);
     final driver = drivers.where((d) => d.id == widget.driverId).firstOrNull;
-    final platforms = ref.watch(platformSettingsProvider);
     final l10n = AppLocalizations.of(context)!;
+
     
     if (driver == null) {
       return Scaffold(
@@ -78,48 +87,7 @@ class _DriverDetailScreenState extends ConsumerState<DriverDetailScreen> {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 32),
         children: [
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  theme.colorScheme.primary,
-                  theme.colorScheme.primary.withValues(alpha: 0.85),
-                ],
-              ),
-            ),
-            padding: const EdgeInsets.all(20),
-            child: Row(children: [
-              CircleAvatar(
-                radius: 30,
-                backgroundColor: Colors.white.withValues(alpha: 0.2),
-                child: Text(
-                  driver.name[0].toUpperCase(),
-                  style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      driver.name,
-                      style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(children: [
-                      CommissionBadge(rate: driver.commissionRate),
-                      const SizedBox(width: 8),
-                      Text(
-                        driver.isActive ? l10n.get('active') : l10n.get('inactive'),
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 13),
-                      ),
-                    ]),
-                  ],
-                ),
-              ),
-            ]),
-          ),
+
 
           Padding(
             padding: const EdgeInsets.all(16),
@@ -155,17 +123,18 @@ class _DriverDetailScreenState extends ConsumerState<DriverDetailScreen> {
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 children: platformTotals.entries.map((e) {
-                  final platform = platforms.firstWhere((p) => p.id == e.key, orElse: () => PlatformModel(id: e.key, name: e.key));
+                  final displayName = e.key[0].toUpperCase() + e.key.substring(1).toLowerCase();
                   return Container(
                     width: 120,
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     child: _PlatformCard(
-                      label: platform.name,
+                      label: displayName,
                       amount: e.value,
-                      color: _getPlatformColor(platform.id),
+                      color: _getPlatformColor(e.key),
                     ),
                   );
                 }).toList(),
+
               ),
             ),
 
@@ -186,6 +155,14 @@ class _DriverDetailScreenState extends ConsumerState<DriverDetailScreen> {
             child: WeeklyEarningsTable(entries: entries),
           ),
 
+          // --- BOLT DETAILED BREAKDOWN ---
+          if (entries.any((e) => e.platformId == 'bolt'))
+            _BoltBreakdownSection(
+              driverId: widget.driverId,
+              month: _selectedMonth,
+              year: _selectedYear,
+            ),
+
           if (payroll != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -205,7 +182,8 @@ class _DriverDetailScreenState extends ConsumerState<DriverDetailScreen> {
     }
   }
 
-  void _showEditDialog(BuildContext context, dynamic driver) {
+
+  void _showEditDialog(BuildContext context, Driver driver) {
     final nameController = TextEditingController(text: driver.name);
     final commissionController = TextEditingController(text: (driver.commissionRate * 100).toStringAsFixed(1));
     final formKey = GlobalKey<FormState>();
@@ -222,15 +200,19 @@ class _DriverDetailScreenState extends ConsumerState<DriverDetailScreen> {
             children: [
               TextFormField(
                 controller: nameController,
-                decoration: InputDecoration(labelText: l10n.get('name')),
+                decoration: InputDecoration(
+                  labelText: l10n.get('name'),
+                  prefixIcon: const Icon(Icons.person_outline_rounded),
+                ),
                 validator: (v) => (v == null || v.isEmpty) ? l10n.get('required') : null,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               TextFormField(
                 controller: commissionController,
                 decoration: InputDecoration(
                   labelText: '${l10n.get('commission')} (%)',
                   suffixText: '%',
+                  prefixIcon: const Icon(Icons.percent_rounded),
                 ),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 validator: (v) {
@@ -240,9 +222,9 @@ class _DriverDetailScreenState extends ConsumerState<DriverDetailScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Text(
-                'Note: Changes apply to future earnings only.',
+                'Note: Changes apply to future calculations.',
                 style: TextStyle(fontSize: 11, color: Colors.grey[600], fontStyle: FontStyle.italic),
               ),
             ],
@@ -265,6 +247,316 @@ class _DriverDetailScreenState extends ConsumerState<DriverDetailScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _BoltBreakdownSection extends ConsumerStatefulWidget {
+  final String driverId;
+  final int month;
+  final int year;
+
+  const _BoltBreakdownSection({
+    required this.driverId,
+    required this.month,
+    required this.year,
+  });
+
+  @override
+  ConsumerState<_BoltBreakdownSection> createState() => _BoltBreakdownSectionState();
+}
+
+class _BoltBreakdownSectionState extends ConsumerState<_BoltBreakdownSection> {
+  bool _showVat = true;
+  bool _showPlatformFee = true;
+  bool _showHolidayPay = true;
+  bool _showPension = true;
+
+  double? _overrideVat;
+  double? _overrideFee;
+  double? _overrideShare;
+  double? _overrideHoliday;
+  double? _overridePension;
+
+
+  @override
+  Widget build(BuildContext context) {
+    final tripsAsync = ref.watch(boltTripsProvider);
+    final configAsync = ref.watch(platformConfigProvider);
+    final theme = Theme.of(context);
+
+    return configAsync.when(
+      data: (config) {
+        if (config == null) return const SizedBox.shrink();
+
+        return tripsAsync.when(
+          data: (allTrips) {
+            final drivers = ref.read(driverProvider);
+            final driver = drivers.where((d) => d.id == widget.driverId).firstOrNull;
+            if (driver == null) return const SizedBox.shrink();
+
+            final trips = allTrips.where((t) {
+              if (t.driverName != driver.name) return false;
+              final date = t.orderCreatedTimestamp;
+              return date != null && date.month == widget.month && date.year == widget.year;
+            }).toList();
+
+            if (trips.isEmpty) return const SizedBox.shrink();
+
+            // Calculate dynamic totals based on user's defined rates and toggles
+            double totalGross = 0;
+            double totalTips = 0;
+            for (var t in trips) {
+              totalGross += t.priceTotal;
+              totalTips += (t.rawData?['order_price']?['tips'] as num?)?.toDouble() ?? 0;
+            }
+
+            final vatRate = _showVat ? ((_overrideVat ?? config.taxPercent) / 100) : 0.0;
+            final platformFeeRate = _showPlatformFee ? ((_overrideFee ?? config.platformFeePercent) / 100) : 0.0;
+            final holidayRate = _showHolidayPay ? ((_overrideHoliday ?? config.holidayPayPercent) / 100) : 0.0;
+            final pensionRate = _showPension ? ((_overridePension ?? config.pensionPercent) / 100) : 0.0;
+            final shareRate = (_overrideShare ?? config.driverSharePercent) / 100;
+
+            final vatAmount = totalGross * vatRate;
+            final platformFeeAmount = totalGross * platformFeeRate;
+            final revenue = totalGross - (vatAmount + platformFeeAmount);
+            final driverBaseShare = revenue * shareRate;
+            final holidayPay = driverBaseShare * holidayRate;
+            final pension = (driverBaseShare + holidayPay) * pensionRate;
+            final finalNet = driverBaseShare + holidayPay + pension + totalTips;
+
+            return Card(
+              margin: const EdgeInsets.all(16),
+              elevation: 4,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.1))),
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.analytics_outlined, color: Colors.blue),
+                        const SizedBox(width: 12),
+                        const Text('Live Calculation Worksheet', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        const Spacer(),
+
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        _WorksheetToggle(
+                          label: 'VAT (Moms)',
+                          value: vatAmount,
+                          isActive: _showVat,
+                          onChanged: (v) => setState(() => _showVat = v!),
+                          percent: _overrideVat ?? config.taxPercent,
+                        ),
+                        _WorksheetToggle(
+                          label: 'Platform Fee',
+                          value: platformFeeAmount,
+                          isActive: _showPlatformFee,
+                          onChanged: (v) => setState(() => _showPlatformFee = v!),
+                          percent: _overrideFee ?? config.platformFeePercent,
+                        ),
+                        const Divider(height: 32),
+                        _SummaryRow(label: 'Net Revenue', value: revenue, isBold: true),
+                        const SizedBox(height: 16),
+                        _WorksheetToggle(
+                          label: 'Holiday Pay',
+                          value: holidayPay,
+                          isActive: _showHolidayPay,
+                          onChanged: (v) => setState(() => _showHolidayPay = v!),
+                          percent: _overrideHoliday ?? config.holidayPayPercent,
+                          isDeduction: false,
+                        ),
+                        _WorksheetToggle(
+                          label: 'Pension',
+                          value: pension,
+                          isActive: _showPension,
+                          onChanged: (v) => setState(() => _showPension = v!),
+                          percent: _overridePension ?? config.pensionPercent,
+                          isDeduction: false,
+                        ),
+                        const Divider(height: 32),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(color: theme.colorScheme.primary.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(12)),
+                          child: Column(
+                            children: [
+                              _SummaryRow(label: 'Driver Base (${((_overrideShare ?? config.driverSharePercent)).toStringAsFixed(1)}%)', value: driverBaseShare),
+                              const SizedBox(height: 4),
+                              _SummaryRow(label: 'Total Tips (100% Driver)', value: totalTips, color: Colors.green),
+                              const Divider(height: 24),
+                              _SummaryRow(
+                                label: 'Final Net Payout', 
+                                value: finalNet, 
+                                isBold: true, 
+                                fontSize: 18, 
+                                color: theme.colorScheme.primary
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Individual Trips (${trips.length})',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.blueGrey),
+                    ),
+                  ),
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: trips.length,
+                    separatorBuilder: (context, index) => const Divider(height: 1, indent: 56),
+                    itemBuilder: (context, index) {
+                      final trip = trips[index];
+                      final date = trip.orderCreatedTimestamp?.toLocal();
+                      return ListTile(
+                        dense: true,
+                        leading: const CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Color(0xFFE8F5E9),
+                          child: Icon(Icons.drive_eta, size: 16, color: Color(0xFF2E7D32)),
+                        ),
+                        title: Text(
+                          formatSEK(trip.priceTotal),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(
+                          date != null 
+                              ? DateFormat("MMM dd, hh:mm a").format(date) 
+                              : "No Date",
+                          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                        ),
+                        trailing: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              'Net: ${formatSEK(trip.netEarnings)}',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.blue),
+                            ),
+                            if ((trip.rawData?['dricks'] as num? ?? 0) > 0)
+                              Text(
+                                'Tip: ${formatSEK((trip.rawData?['dricks'] as num?)?.toDouble() ?? 0.0)}',
+                                style: const TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold),
+                              ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, st) => const SizedBox.shrink(),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (e, st) => const SizedBox.shrink(),
+    );
+  }
+}
+
+class _WorksheetToggle extends StatelessWidget {
+  final String label;
+  final double value;
+  final bool isActive;
+  final ValueChanged<bool?> onChanged;
+  final double percent;
+  final bool isDeduction;
+
+  const _WorksheetToggle({
+    required this.label,
+    required this.value,
+    required this.isActive,
+    required this.onChanged,
+    required this.percent,
+    this.isDeduction = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Checkbox(
+            value: isActive, 
+            onChanged: onChanged,
+            visualDensity: VisualDensity.compact,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                Text('${percent.toStringAsFixed(1)}%', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+              ],
+            ),
+          ),
+          Text(
+            '${isDeduction ? "-" : "+"}${formatSEK(value)}',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: isActive ? (isDeduction ? Colors.red.shade700 : Colors.green.shade700) : Colors.grey.shade400,
+              decoration: isActive ? null : TextDecoration.lineThrough,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryRow extends StatelessWidget {
+  final String label;
+  final double value;
+  final bool isBold;
+  final double fontSize;
+  final Color? color;
+
+  const _SummaryRow({
+    required this.label,
+    required this.value,
+    this.isBold = false,
+    this.fontSize = 14,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: TextStyle(fontSize: fontSize - 1, fontWeight: isBold ? FontWeight.bold : FontWeight.w500)),
+        Text(
+          formatSEK(value),
+          style: TextStyle(
+            fontSize: fontSize,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+            color: color,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -1,0 +1,7 @@
+driver_name,date,gross_amount,net_amount,tips,platform
+John Andersson,2026-05-01,850.00,637.50,0.00,Uber
+Maria Johansson,2026-05-01,620.00,465.00,40.00,Uber
+John Andersson,2026-05-02,1100.00,825.00,60.00,Uber
+Maria Johansson,2026-05-03,780.00,585.00,0.00,Uber
+John Andersson,2026-05-05,450.00,337.50,25.00,Uber
+Maria Johansson,2026-05-06,930.00,697.50,50.00,Uber

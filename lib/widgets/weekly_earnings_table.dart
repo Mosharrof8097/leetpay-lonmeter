@@ -45,7 +45,7 @@ class WeeklyEarningsTable extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                '${l10n.week}ly ${l10n.earnings.toLowerCase()}',
+                l10n.weeklyEarnings,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
@@ -67,8 +67,8 @@ class WeeklyEarningsTable extends StatelessWidget {
                   DataColumn(label: Text(l10n.platform)),
                   DataColumn(label: Text(l10n.showBrutto.split(' ').last)),
                   DataColumn(label: Text(l10n.showNetto.split(' ').last)),
-                  DataColumn(label: Text('Moms')),
-                  DataColumn(label: Text(l10n.get('dricks_total'))),
+                  DataColumn(label: Text(l10n.vat)),
+                  DataColumn(label: Text(l10n.tipsTotal.split(' ').first)),
                 ],
                 rows: sorted.map((e) => DataRow(cells: [
                   DataCell(Text(

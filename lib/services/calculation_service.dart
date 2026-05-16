@@ -11,27 +11,28 @@ class CalculationService {
     return bruttoAmount / (1 + kMoms6);
   }
 
-  /// Calculate net earnings after removing platform fee and 6% VAT
-  static double calculateNetEarnings(double bruttoAmount, {double feeAmount = 0}) {
-    if (bruttoAmount <= 0) return 0;
-    final amountAfterFee = (bruttoAmount - feeAmount).roundToDouble();
-    return (amountAfterFee / (1 + kMoms6)).roundToDouble();
-  }
-
-  /// Calculate 6% VAT (moms) amount
+  /// Calculate 0.0566 VAT (moms) amount as per user scenario
   static double calculateMoms(double bruttoAmount) {
     if (bruttoAmount <= 0) return 0;
-    final netto = calculateNetto(bruttoAmount);
-    return bruttoAmount - netto;
+    // Standard factor requested by user: 0.0566
+    return (bruttoAmount * 0.0566).roundToDouble();
+  }
+
+  /// Calculate net earnings after removing platform fee and VAT
+  /// Formula: Net = Gross - (VAT + PlatformFee)
+  static double calculateNetEarnings(double bruttoAmount, {double feeAmount = 0}) {
+    if (bruttoAmount <= 0) return 0;
+    final vat = calculateMoms(bruttoAmount);
+    return (bruttoAmount - (vat + feeAmount)).roundToDouble();
   }
 
   /// Calculate provision (commission) inkl semester
-  /// provision_inkl_semester = nettoIntakter * commissionRate
+  /// Formula: provision = NetRevenue * DriverShare%
   static double calculateProvisionInklSemester(
-    double nettoIntakter,
-    double commissionRate,
+    double netRevenue,
+    double driverShareRate,
   ) {
-    return nettoIntakter * commissionRate;
+    return (netRevenue * driverShareRate).roundToDouble();
   }
 
   /// Calculate exkl semester
@@ -96,56 +97,48 @@ class CalculationService {
     return getSemesterRate(commissionRate);
   }
 
-  /// Full payroll calculation from net earnings
+  /// Full payroll calculation from net revenue with dynamic factors
   static PayrollResult calculateFullPayroll({
-    required double nettoIntakter,
-    required double commissionRate,
+    required double netRevenue,
+    required double driverShareRate,
     double dricks = 0,
-    double? overrideSemesterRate,
+    double holidayPayRate = 0.12,
+    double pensionRate = 0.045,
   }) {
-    final semesterRate =
-        overrideSemesterRate ?? getSemesterRateForCommission(commissionRate);
-
-    // 1. Calculate base provision (ONLY on Netto, excluding tips)
-    final provisionInklSemester =
-        calculateProvisionInklSemester(nettoIntakter, commissionRate).roundToDouble();
+    // 1. Calculate driver's base share (Provision)
+    final driverBaseShare = calculateProvisionInklSemester(netRevenue, driverShareRate);
     
-    // 2. Split into Exkl and Semester
-    final exklSemester =
-        calculateExklSemester(provisionInklSemester, semesterRate).roundToDouble();
-    final semester = (provisionInklSemester - exklSemester).roundToDouble();
-
-    // 3. Social Fees (Base is Inkl. Semester)
-    final fora = calculateFora(provisionInklSemester);
-    final arbetsgivaravgifter = calculateArbetsgivaravgifter(provisionInklSemester);
+    // 2. Calculate Holiday Pay (Z%)
+    final holidayPay = (driverBaseShare * holidayPayRate).roundToDouble();
     
-    // 4. Total Payroll Cost for Company
-    final totalLonekostnad = calculateTotalLonekostnad(
-      exklSemester: exklSemester,
-      semester: semester,
-      fora: fora,
-      arbetsgivaravgifter: arbetsgivaravgifter,
-    ).roundToDouble();
+    // 3. Calculate Pension
+    final pension = ((driverBaseShare + holidayPay) * pensionRate).roundToDouble();
 
-    // 5. Driver's Gross Payout (Provision + 100% Tips)
-    final driverGrossSalary = (provisionInklSemester + dricks).roundToDouble();
+    // 4. Total Employer Cost (Payroll Cost)
+    // In the new scenario, employer costs are driverBase + holiday + pension
+    final totalLonekostnad = (driverBaseShare + holidayPay + pension).roundToDouble();
+
+    // 5. Driver's Gross Payout (Base + 100% Tips)
+    // Note: Holiday pay is usually paid later or included. Here we treat Base+Tips as current payout.
+    final driverGrossSalary = (driverBaseShare + dricks).roundToDouble();
     
     // 6. Preliminary Tax (30% on Gross Salary)
     final preliminaryTax = (driverGrossSalary * 0.30).roundToDouble();
     final takeHomePay = (driverGrossSalary - preliminaryTax).roundToDouble();
 
-    final netProfit = (nettoIntakter + dricks - totalLonekostnad - dricks).roundToDouble(); // Company doesn't keep tips
-    // Simplified profit logic: Netto - Company's payroll costs (Tips are pass-through)
-    final companyNetProfit = (nettoIntakter - totalLonekostnad).roundToDouble();
-    final profitMargin = nettoIntakter > 0 ? (companyNetProfit / nettoIntakter) : 0.0;
+    // 7. Company's Net Profit
+    // Profit = NetRevenue - (HolidayPay + Pension + DriverBaseShare)
+    // Tips are pass-through, so they don't affect profit
+    final companyNetProfit = (netRevenue - totalLonekostnad).roundToDouble();
+    final profitMargin = netRevenue > 0 ? (companyNetProfit / netRevenue) : 0.0;
 
     return PayrollResult(
-      provisionInklSemester: provisionInklSemester,
-      exklSemester: exklSemester,
-      semesterAmount: semester,
-      semesterRate: semesterRate,
-      foraAmount: fora,
-      arbetsgivaravgifter: arbetsgivaravgifter,
+      provisionInklSemester: driverBaseShare,
+      exklSemester: driverBaseShare, // Simplified for the new model
+      semesterAmount: holidayPay,
+      semesterRate: holidayPayRate,
+      foraAmount: pension, // Using Fora field for Pension in this model
+      arbetsgivaravgifter: 0, // Consolidated into totalLonekostnad
       totalLonekostnad: totalLonekostnad,
       preliminaryTax: preliminaryTax,
       takeHomePay: takeHomePay,
@@ -195,13 +188,15 @@ class CalculationService {
       platformBrutto[pid] = (platformBrutto[pid] ?? 0) + currentBrutto;
 
       // Calculate payroll for this specific entry
-      // If useLiveRate is true, we ignore the snapshot and use the driver's current rate
       final entryRate = useLiveRate ? commissionRate : (entry.appliedPercentage ?? commissionRate);
       
       final entryResult = calculateFullPayroll(
-        nettoIntakter: entry.nettoAmount, // Provision ONLY on Netto
+        netRevenue: entry.nettoAmount, // Provision ONLY on Netto
         dricks: entry.dricks,           // Tips added to payout separately
-        commissionRate: entryRate,
+        driverShareRate: entryRate,
+        // Standard Swedish defaults for now, but these can come from PlatformConfig
+        holidayPayRate: 0.12, 
+        pensionRate: 0.045,
       );
 
       totalExklSemester += entryResult.exklSemester;

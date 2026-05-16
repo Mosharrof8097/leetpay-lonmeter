@@ -329,8 +329,8 @@ abstract class AppLocalizations {
   /// No description provided for @driverNotFound.
   ///
   /// In en, this message translates to:
-  /// **'Driver not found'**
-  String get driverNotFound;
+  /// **'Driver \'{name}\' not found.'**
+  String driverNotFound(Object name);
 
   /// No description provided for @deleteDriverTitle.
   ///
@@ -1045,6 +1045,324 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not save settings to the cloud.'**
   String get syncErrorDesc;
+
+  /// No description provided for @boltFleetAutomation.
+  ///
+  /// In en, this message translates to:
+  /// **'Bolt Fleet Automation'**
+  String get boltFleetAutomation;
+
+  /// No description provided for @syncDataFromBolt.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync Data from Bolt'**
+  String get syncDataFromBolt;
+
+  /// No description provided for @syncNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync Now'**
+  String get syncNow;
+
+  /// No description provided for @syncing.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing...'**
+  String get syncing;
+
+  /// No description provided for @syncSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync successful!'**
+  String get syncSuccess;
+
+  /// No description provided for @syncFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed: {error}'**
+  String syncFailed(Object error);
+
+  /// No description provided for @ridePrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Ride Price'**
+  String get ridePrice;
+
+  /// No description provided for @boltCommission.
+  ///
+  /// In en, this message translates to:
+  /// **'Bolt Commission'**
+  String get boltCommission;
+
+  /// No description provided for @vat6.
+  ///
+  /// In en, this message translates to:
+  /// **'6% VAT'**
+  String get vat6;
+
+  /// No description provided for @employerFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Employer Fee'**
+  String get employerFee;
+
+  /// No description provided for @finalNetPayout.
+  ///
+  /// In en, this message translates to:
+  /// **'Final Net Payout'**
+  String get finalNetPayout;
+
+  /// No description provided for @yourTrips.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Trips'**
+  String get yourTrips;
+
+  /// No description provided for @noTripsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No trips found for you yet.'**
+  String get noTripsFound;
+
+  /// No description provided for @ref.
+  ///
+  /// In en, this message translates to:
+  /// **'Ref'**
+  String get ref;
+
+  /// No description provided for @driverDashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Driver Dashboard'**
+  String get driverDashboard;
+
+  /// No description provided for @adminDashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin Dashboard'**
+  String get adminDashboard;
+
+  /// No description provided for @netEarnings.
+  ///
+  /// In en, this message translates to:
+  /// **'Net Earnings'**
+  String get netEarnings;
+
+  /// No description provided for @priceTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Price Total'**
+  String get priceTotal;
+
+  /// No description provided for @saasIntegrations.
+  ///
+  /// In en, this message translates to:
+  /// **'SaaS Integrations'**
+  String get saasIntegrations;
+
+  /// No description provided for @boltFleetApi.
+  ///
+  /// In en, this message translates to:
+  /// **'Bolt Fleet API'**
+  String get boltFleetApi;
+
+  /// No description provided for @connected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get connected;
+
+  /// No description provided for @setupCredentials.
+  ///
+  /// In en, this message translates to:
+  /// **'Setup your company credentials'**
+  String get setupCredentials;
+
+  /// No description provided for @checkingConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking connection...'**
+  String get checkingConnection;
+
+  /// No description provided for @apiIntegration.
+  ///
+  /// In en, this message translates to:
+  /// **'API Integration'**
+  String get apiIntegration;
+
+  /// No description provided for @clientId.
+  ///
+  /// In en, this message translates to:
+  /// **'Client ID'**
+  String get clientId;
+
+  /// No description provided for @clientSecret.
+  ///
+  /// In en, this message translates to:
+  /// **'Client Secret'**
+  String get clientSecret;
+
+  /// No description provided for @fleetId.
+  ///
+  /// In en, this message translates to:
+  /// **'Company / Fleet ID'**
+  String get fleetId;
+
+  /// No description provided for @saveIntegrationSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Integration Settings'**
+  String get saveIntegrationSettings;
+
+  /// No description provided for @required.
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get required;
+
+  /// No description provided for @settingsSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings saved successfully'**
+  String get settingsSaved;
+
+  /// No description provided for @savePreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Preset'**
+  String get savePreset;
+
+  /// No description provided for @presetName.
+  ///
+  /// In en, this message translates to:
+  /// **'Preset Name'**
+  String get presetName;
+
+  /// No description provided for @columnMapping.
+  ///
+  /// In en, this message translates to:
+  /// **'Column Mapping'**
+  String get columnMapping;
+
+  /// No description provided for @loadPreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Load Preset'**
+  String get loadPreset;
+
+  /// No description provided for @notMapped.
+  ///
+  /// In en, this message translates to:
+  /// **'Not Mapped'**
+  String get notMapped;
+
+  /// No description provided for @preview.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get preview;
+
+  /// No description provided for @startImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Import'**
+  String get startImport;
+
+  /// No description provided for @unmatchedDriver.
+  ///
+  /// In en, this message translates to:
+  /// **'Unmatched Driver'**
+  String get unmatchedDriver;
+
+  /// No description provided for @createNewDriver.
+  ///
+  /// In en, this message translates to:
+  /// **'Create New Driver'**
+  String get createNewDriver;
+
+  /// No description provided for @mapAndContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Map & Continue'**
+  String get mapAndContinue;
+
+  /// No description provided for @skipRow.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip Row'**
+  String get skipRow;
+
+  /// No description provided for @linkToExisting.
+  ///
+  /// In en, this message translates to:
+  /// **'Link to existing:'**
+  String get linkToExisting;
+
+  /// No description provided for @incompleteRowsSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Note: Incomplete rows will be skipped during import.'**
+  String get incompleteRowsSkipped;
+
+  /// No description provided for @signInDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to your Lönmeter account'**
+  String get signInDesc;
+
+  /// No description provided for @signUpDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage your fleet professionally'**
+  String get signUpDesc;
+
+  /// No description provided for @minCharacters.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimum {count} characters'**
+  String minCharacters(Object count);
+
+  /// No description provided for @page.
+  ///
+  /// In en, this message translates to:
+  /// **'Page'**
+  String get page;
+
+  /// No description provided for @generated.
+  ///
+  /// In en, this message translates to:
+  /// **'Generated'**
+  String get generated;
+
+  /// No description provided for @tax_deduction.
+  ///
+  /// In en, this message translates to:
+  /// **'Tax Deduction'**
+  String get tax_deduction;
+
+  /// No description provided for @take_home_pay.
+  ///
+  /// In en, this message translates to:
+  /// **'Take-Home Pay'**
+  String get take_home_pay;
+
+  /// No description provided for @andel_av_inkort.
+  ///
+  /// In en, this message translates to:
+  /// **'Share of Revenue'**
+  String get andel_av_inkort;
+
+  /// No description provided for @weeklyEarnings.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly Earnings'**
+  String get weeklyEarnings;
+
+  /// No description provided for @vat.
+  ///
+  /// In en, this message translates to:
+  /// **'VAT'**
+  String get vat;
 }
 
 class _AppLocalizationsDelegate

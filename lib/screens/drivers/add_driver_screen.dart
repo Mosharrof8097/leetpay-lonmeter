@@ -4,7 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/driver_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../models/driver.dart';
 import 'package:fleetpay/l10n/app_localizations.dart';
+
+
 
 class AddDriverScreen extends ConsumerStatefulWidget {
   const AddDriverScreen({super.key});
@@ -28,27 +31,16 @@ class _AddDriverScreenState extends ConsumerState<AddDriverScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
-    final commissionRates = ref.watch(commissionRatesProvider);
     
-    if (_commissionRate == null && commissionRates.isNotEmpty) {
-      _commissionRate = commissionRates.contains(0.43) ? 0.43 : commissionRates.first;
-    }
-
     return Scaffold(
+
       appBar: AppBar(title: Text(l10n.get('new_driver'))),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: [
-            Center(
-              child: CircleAvatar(
-                radius: 40,
-                backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-                child: Icon(Icons.person_rounded, size: 48, color: theme.colorScheme.primary),
-              ),
-            ),
-            const SizedBox(height: 32),
+
 
             TextFormField(
               controller: _nameController,
@@ -66,35 +58,31 @@ class _AddDriverScreenState extends ConsumerState<AddDriverScreen> {
               style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 12),
-            
             Wrap(
               spacing: 8,
-              children: commissionRates.map((rate) => ChoiceChip(
-                label: Text('${(rate * 100).toStringAsFixed(1)}%'),
+              children: [0.37, 0.43, 0.45].map((rate) => ChoiceChip(
+                label: Text('${(rate * 100).toStringAsFixed(0)}%'),
                 selected: _commissionRate == rate,
                 onSelected: (selected) {
                   if (selected) setState(() => _commissionRate = rate);
                 },
               )).toList(),
             ),
-
-            const SizedBox(height: 12),
-            Card(
-              color: const Color(0xFF2962FF).withValues(alpha: 0.08),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(children: [
-                  const Icon(Icons.info_outline_rounded, color: Color(0xFF2962FF), size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'This rate will be used for all tax and commission calculations for this driver.',
-                      style: const TextStyle(fontSize: 13, color: Color(0xFF2962FF)),
-                    ),
-                  ),
-                ]),
+            const SizedBox(height: 24),
+            TextFormField(
+              initialValue: _commissionRate != null ? (_commissionRate! * 100).toStringAsFixed(1) : '',
+              decoration: InputDecoration(
+                labelText: '${l10n.get('custom_commission')} (%)',
+                prefixIcon: const Icon(Icons.percent_rounded),
               ),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              onChanged: (v) {
+                final rate = double.tryParse(v);
+                if (rate != null) setState(() => _commissionRate = rate / 100);
+              },
             ),
+
+
             const SizedBox(height: 40),
 
             FilledButton.icon(
@@ -117,10 +105,12 @@ class _AddDriverScreenState extends ConsumerState<AddDriverScreen> {
     if (_commissionRate == null) return;
     
     final l10n = AppLocalizations.of(context)!;
-    ref.read(driverProvider.notifier).addDriver(
-      _nameController.text.trim(), 
-      _commissionRate!,
+    final newDriver = Driver(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      name: _nameController.text.trim(),
+      commissionRate: _commissionRate!,
     );
+    ref.read(driverProvider.notifier).addDriver(newDriver);
     context.pop();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(l10n.get('driver_added')), behavior: SnackBarBehavior.floating),

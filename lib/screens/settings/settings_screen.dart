@@ -10,13 +10,19 @@ import '../../providers/driver_provider.dart';
 import '../../providers/earnings_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/database_service.dart';
+import '../../services/supabase_service.dart';
 import 'package:fleetpay/l10n/app_localizations.dart';
 import '../../widgets/import_dialogs.dart';
 import '../../services/file_import_service.dart';
+import '../../providers/payroll_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../import_history/import_history_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:go_router/go_router.dart';
+import '../../providers/platform_config_provider.dart';
+
+
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -27,6 +33,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late TextEditingController _companyController;
+  late FocusNode _companyFocusNode;
   late int _taxYear;
   late double _defaultRate;
   AppLocalizations get l10n => AppLocalizations.of(context)!;
@@ -36,6 +43,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     super.initState();
     _companyController =
         TextEditingController(text: DatabaseService.getCompanyName());
+    _companyFocusNode = FocusNode();
     _taxYear = DatabaseService.getTaxYear();
     _defaultRate = DatabaseService.getDefaultCommissionRate();
   }
@@ -43,6 +51,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   void dispose() {
     _companyController.dispose();
+    _companyFocusNode.dispose();
     super.dispose();
   }
 
@@ -52,8 +61,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final themeMode = ref.watch(themeModeProvider);
-    final commissionRates = ref.watch(commissionRatesProvider);
-    final platforms = ref.watch(platformSettingsProvider);
+    final companyName = ref.watch(companyNameProvider);
+
+
+    // Use ref.listen to react to changes from the backend without interrupting typing
+    ref.listen<String>(companyNameProvider, (prev, next) {
+      if (!_companyFocusNode.hasFocus && !_isSavingCompany) {
+        _companyController.text = next;
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.settings)),
@@ -71,6 +87,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               child: Column(children: [
                 TextField(
                   controller: _companyController,
+                  focusNode: _companyFocusNode,
                   decoration: InputDecoration(
                     labelText: l10n.companyName,
                     prefixIcon: const Icon(Icons.business_rounded),
@@ -137,63 +154,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 24),
 
-          // Commissions section
-          _SectionHeader(
-            icon: Icons.percent_rounded,
-            title: l10n.commissionRate,
-          ),
-          Card(
-            child: Column(children: [
-              ...commissionRates.map((rate) => ListTile(
-                title: Text('${(rate * 100).toStringAsFixed(1)}%'),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
-                  onPressed: () => ref.read(commissionRatesProvider.notifier).removeRate(rate),
-                ),
-              )),
-              const Divider(height: 0),
-              ListTile(
-                leading: const Icon(Icons.add_rounded),
-                title: Text(l10n.get('add_percentage')),
-                onTap: _showAddCommissionDialog,
-              ),
-            ]),
-          ),
-          const SizedBox(height: 24),
-
-          // Platforms section
-          _SectionHeader(
-            icon: Icons.apps_rounded,
-            title: l10n.get('platforms_categories'),
-          ),
-          Card(
-            child: Column(children: [
-              ...platforms.map((p) => ListTile(
-                leading: Icon(_getPlatformIcon(p.id)),
-                title: Text(p.name),
-                trailing: (p.isLocked ?? false) ? const Icon(Icons.lock_outline_rounded, size: 18) : Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.edit_outlined),
-                      onPressed: () => _showEditPlatformDialog(p.id, p.name),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
-                      onPressed: () => ref.read(platformSettingsProvider.notifier).deletePlatform(p.id),
-                    ),
-                  ],
-                ),
-              )),
-              const Divider(height: 0),
-              ListTile(
-                leading: const Icon(Icons.add_rounded),
-                title: Text(l10n.get('add_platform')),
-                onTap: _showAddPlatformDialog,
-              ),
-            ]),
-          ),
-          const SizedBox(height: 24),
 
           // Language section
           _SectionHeader(
@@ -271,6 +231,55 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 24),
 
+          // SaaS Integrations
+          _SectionHeader(
+            icon: Icons.hub_rounded,
+            title: l10n.saasIntegrations,
+          ),
+          Card(
+            child: Column(children: [
+              Consumer(
+                builder: (context, ref, child) {
+                  final configAsync = ref.watch(platformConfigProvider);
+                  return configAsync.when(
+                    data: (config) {
+                      debugPrint('SettingsScreen: UI received config: ${config?.clientId}');
+                      return ListTile(
+                        leading: Icon(
+                          Icons.bolt_rounded, 
+                          color: config != null ? const Color(0xFF7ED957) : Colors.amber
+                        ),
+                        title: Text(l10n.boltFleetApi),
+                        subtitle: Text(config != null ? l10n.connected : l10n.setupCredentials),
+                        trailing: config != null 
+                          ? const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF7ED957))
+                          : const Icon(Icons.chevron_right_rounded),
+                        onTap: () => context.push('/settings/integration'),
+                      );
+                    },
+                    loading: () => ListTile(
+                      leading: const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      title: Text(l10n.boltFleetApi),
+                      subtitle: Text(l10n.checkingConnection),
+                    ),
+                    error: (err, _) => ListTile(
+                      leading: const Icon(Icons.error_outline_rounded, color: Colors.red),
+                      title: Text(l10n.boltFleetApi),
+                      subtitle: Text('${l10n.errorMessage(err.toString())}'),
+                      onTap: () => context.push('/settings/integration'),
+                    ),
+                  );
+                },
+              ),
+            ]),
+          ),
+          const SizedBox(height: 24),
+
+
           // Data management
           _SectionHeader(
             icon: Icons.storage_rounded,
@@ -324,116 +333,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  IconData _getPlatformIcon(String id) {
-    switch (id) {
-      case 'bolt': return Icons.electric_bolt_rounded;
-      case 'uber': return Icons.directions_car_rounded;
-      default: return Icons.local_taxi_rounded;
-    }
-  }
-
-  void _showAddCommissionDialog() {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.addCommission),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(suffixText: '%'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.cancel)),
-          ElevatedButton(
-            onPressed: () {
-              final val = double.tryParse(controller.text);
-              if (val != null) {
-                ref.read(commissionRatesProvider.notifier).addRate(val / 100);
-              }
-              Navigator.pop(ctx);
-            },
-            child: Text(l10n.add),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAddPlatformDialog() {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.newPlatform),
-        content: TextField(controller: controller),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.cancel)),
-          ElevatedButton(
-            onPressed: () {
-              if (controller.text.isNotEmpty) {
-                ref.read(platformSettingsProvider.notifier).addPlatform(controller.text.trim());
-              }
-              Navigator.pop(ctx);
-            },
-            child: Text(l10n.add),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showEditPlatformDialog(String id, String currentName) {
-    final controller = TextEditingController(text: currentName);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.renamePlatform),
-        content: TextField(controller: controller),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.cancel)),
-          ElevatedButton(
-            onPressed: () {
-              if (controller.text.isNotEmpty) {
-                ref.read(platformSettingsProvider.notifier).updatePlatform(id, controller.text.trim());
-              }
-              Navigator.pop(ctx);
-            },
-            child: Text(l10n.update),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _importData() async {
-    final platforms = ref.read(platformSettingsProvider);
+    const platformId = 'manual';
     bool loadingShown = false;
 
     try {
-      // 1. Pick Platform
-      final platformId = await showDialog<String>(
-        context: context,
-        useRootNavigator: true,
-        builder: (ctx) => AlertDialog(
-          title: Text(l10n.selectPlatform),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: platforms.length,
-              itemBuilder: (ctx, i) => ListTile(
-                title: Text(platforms[i].name),
-                onTap: () => Navigator.of(ctx).pop(platforms[i].id),
-              ),
-            ),
-          ),
-        ),
-      );
-
-      if (platformId == null || !mounted) return;
-
-      // 2. Pick File
+      // 1. Pick File
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['xlsx', 'csv'],
@@ -442,7 +347,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (result == null || result.files.single.path == null || !mounted) return;
       final filePath = result.files.single.path!;
 
-      // 3. Get Headers & Map
+      // 2. Get Headers & Map
       final headers = await FileImportService.getHeaders(filePath);
       if (headers == null || !mounted) return;
 
@@ -453,6 +358,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       );
 
       if (mapping == null || !mounted) return;
+
+      // 3. Preview Data
+      final previewData = await FileImportService.getPreviewData(filePath, mapping);
+      if (previewData.isEmpty || !mounted) return;
+
+      final confirm = await showDialog<bool>(
+        context: context,
+        useRootNavigator: true,
+        builder: (ctx) => ImportPreviewDialog(
+          previewData: previewData,
+          fileName: result.files.single.name,
+        ),
+      );
+
+      if (confirm != true || !mounted) return;
 
       // 4. Process with Progress
       showDialog(
@@ -467,14 +387,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         filePath: filePath,
         platformId: platformId,
         mapping: mapping,
-        onNameMismatch: (name) async => null,
+        onNameMismatch: (name) async {
+          if (!mounted) return null;
+          return await showDialog<String>(
+            context: context,
+            useRootNavigator: true,
+            builder: (ctx) => NameMismatchDialog(unmatchedName: name),
+          );
+        },
       );
 
       if (!context.mounted) return;
       
-      // Refresh data 
+      // 5. Refresh data & Invalidate Payroll AFTER success
       await ref.read(driverProvider.notifier).refresh();
       await ref.read(earningsProvider.notifier).refresh();
+      ref.invalidate(monthlyPayrollProvider);
 
       if (loadingShown) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -524,6 +452,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+
   Future<void> _exportJSON() async {
     try {
       final data = await DatabaseService.exportBackup();
@@ -533,7 +462,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await file.writeAsString(jsonString);
       await Share.shareXFiles([XFile(file.path)], subject: 'Lönmeter JSON Backup');
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.exportFailed(e.toString()))));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.errorMessage(e.toString()))));
     }
   }
 
@@ -556,9 +485,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Navigator.of(context).pop(); // Pop loading
           ref.read(driverProvider.notifier).refresh();
           ref.read(earningsProvider.notifier).refresh();
-          ref.invalidate(commissionRatesProvider);
-          ref.invalidate(platformSettingsProvider);
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+
             content: Text('Backup restored successfully!'),
             backgroundColor: Color(0xFF34A853),
             behavior: SnackBarBehavior.floating,
@@ -573,13 +501,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+
+
   void _clearData() {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = context.l10n;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(l10n.get('delete_all_data')),
-        content: Text(l10n.get('delete_all_content')),
+        title: Text(l10n.deleteAllData),
+        content: Text(l10n.deleteAllContent),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.cancel)),
           FilledButton(
@@ -587,10 +517,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               await DatabaseService.clearAllData();
               ref.read(driverProvider.notifier).refresh();
               ref.read(earningsProvider.notifier).refresh();
-              ref.invalidate(commissionRatesProvider);
-              ref.invalidate(platformSettingsProvider);
+
               if (ctx.mounted) Navigator.pop(ctx);
-              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.get('data_erased')), behavior: SnackBarBehavior.floating, backgroundColor: Colors.red));
+              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.dataErased), behavior: SnackBarBehavior.floating, backgroundColor: Colors.red));
             },
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             child: Text(l10n.delete),
@@ -608,6 +537,7 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 8),
       child: Row(children: [

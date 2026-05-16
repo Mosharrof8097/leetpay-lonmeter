@@ -36,50 +36,49 @@ class PayrollSummaryCard extends StatelessWidget {
                 ),
               ],
             ),
-            const Divider(height: 24, color: Colors.white12),
-            _row(l10n.get('provision_incl_semester'), payroll.provisionInklSemester, theme),
-            _row(l10n.get('excl_semester'), payroll.exklSemester, theme),
+            const Divider(height: 24),
+            _row(l10n.provisionInclSemester, payroll.provisionInklSemester, theme),
+            _row(l10n.exclSemester, payroll.exklSemester, theme),
             _row(
-              '${l10n.semester} (${(payroll.semesterRate * 100).toStringAsFixed(1)}%)', 
+              '${l10n.holidayPay} (${(payroll.semesterRate * 100).toStringAsFixed(1)}%)', 
               payroll.semesterAmount, 
               theme,
             ),
             _row('${l10n.fora} 4.5%', payroll.foraAmount, theme),
             _row('${l10n.arbetsgivaravgifter} 31.42%', payroll.arbetsgivaravgifter, theme),
-            const Divider(height: 20, color: Colors.white12),
+            const Divider(height: 20),
             _row(
-              l10n.totalLonekostnad, 
+              l10n.totalPayrollCost, 
               payroll.totalLonekostnad, 
               theme, 
               bold: true, 
               highlight: true,
             ),
             const SizedBox(height: 12),
-            _row(l10n.get('tax_deduction'), -payroll.preliminaryTax, theme, highlight: false),
+            _row(l10n.tax_deduction, -payroll.preliminaryTax, theme, highlight: false),
             _row(
-              l10n.get('take_home_pay'), 
+              l10n.take_home_pay, 
               payroll.takeHomePay, 
               theme, 
               bold: true, 
               highlight: true,
             ),
-            const Divider(height: 24, color: Colors.white12),
+            const Divider(height: 24),
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                color: theme.colorScheme.primary.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.2)),
+                border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.1)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    l10n.get('andel_av_inkort'),
+                    l10n.shareOfRevenue,
                     style: theme.textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: Colors.grey[400],
                     ),
                   ),
                   Text(
@@ -114,8 +113,8 @@ class PayrollSummaryCard extends StatelessWidget {
             child: Text(
               label, 
               style: theme.textTheme.bodySmall?.copyWith(
-                fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
-                color: highlight ? theme.colorScheme.primary : Colors.grey[300],
+                fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+                color: highlight ? theme.colorScheme.primary : theme.textTheme.bodySmall?.color?.withValues(alpha: 0.8),
               ),
             ),
           ),
@@ -123,7 +122,7 @@ class PayrollSummaryCard extends StatelessWidget {
             formatSEK(value), 
             style: theme.textTheme.bodyMedium?.copyWith(
               fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
-              color: highlight ? theme.colorScheme.primary : Colors.white,
+              color: highlight ? theme.colorScheme.primary : theme.textTheme.bodyMedium?.color,
             ),
           ),
         ],

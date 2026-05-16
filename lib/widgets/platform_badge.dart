@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/earnings_entry.dart';
-import '../providers/settings_provider.dart';
+import '../models/driver.dart';
 
 class PlatformBadge extends ConsumerWidget {
   final String platformId;
@@ -25,10 +24,9 @@ class PlatformBadge extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final platforms = ref.watch(platformSettingsProvider);
-    final platform = platforms.firstWhere((p) => p.id == platformId, orElse: () => PlatformModel(id: platformId, name: platformId));
     final theme = Theme.of(context);
     final color = _getColor(platformId, theme.brightness);
+    final displayName = platformId[0].toUpperCase() + platformId.substring(1).toLowerCase();
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -41,7 +39,7 @@ class PlatformBadge extends ConsumerWidget {
         border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Text(
-        platform.name,
+        displayName,
         style: TextStyle(
           color: color, 
           fontSize: small ? 10 : 12, 
@@ -51,6 +49,7 @@ class PlatformBadge extends ConsumerWidget {
     );
   }
 }
+
 
 class CommissionBadge extends StatelessWidget {
   final double rate;

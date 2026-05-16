@@ -10,6 +10,7 @@ import '../../providers/payroll_provider.dart';
 import '../../utils/formatters.dart';
 import 'package:fleetpay/l10n/app_localizations.dart';
 
+
 class EarningsScreen extends ConsumerStatefulWidget {
   const EarningsScreen({super.key});
 
@@ -17,8 +18,8 @@ class EarningsScreen extends ConsumerStatefulWidget {
   ConsumerState<EarningsScreen> createState() => _EarningsScreenState();
 }
 
-class _EarningsScreenState extends ConsumerState<EarningsScreen> with SingleTickerProviderStateMixin {
-  TabController? _tabController;
+class _EarningsScreenState extends ConsumerState<EarningsScreen> {
+
   String? _selectedDriverId;
   int _month = DateTime.now().month;
   int _year = DateTime.now().year;
@@ -40,7 +41,7 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen> with SingleTick
 
   @override
   void dispose() {
-    _tabController?.dispose();
+
     _bruttoController.dispose();
     _dricksController.dispose();
     _uberBruttoController.dispose();
@@ -59,17 +60,10 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen> with SingleTick
 
   @override
   Widget build(BuildContext context) {
-    final platforms = ref.watch(platformSettingsProvider);
     final drivers = ref.watch(activeDriversProvider);
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
 
-    if (_tabController == null || _tabController!.length != platforms.length) {
-      _tabController?.dispose();
-      _tabController = TabController(length: platforms.length, vsync: this);
-    }
-
-    final currentPlatform = platforms[_tabController!.index];
     
     // Safety check: Ensure selected driver still exists (prevents crash on deletion)
     if (_selectedDriverId != null && !drivers.any((d) => d.id == _selectedDriverId)) {
@@ -79,18 +73,6 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen> with SingleTick
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.addEarning),
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: platforms.length > 3,
-          onTap: (_) => setState(() {}),
-          indicatorColor: theme.colorScheme.primary,
-          labelColor: theme.colorScheme.onSurface,
-          unselectedLabelColor: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-          tabs: platforms.map((p) => Tab(
-            text: p.name,
-            icon: Icon(_getPlatformIcon(p.id), size: 18),
-          )).toList(),
-        ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -121,7 +103,7 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen> with SingleTick
           ]),
           const SizedBox(height: 12),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
 
           // Driver selector
           DropdownButtonFormField<String>(
@@ -219,24 +201,24 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen> with SingleTick
           const SizedBox(height: 12),
 
           // Uber brutto (only for Uber tab)
-          if (currentPlatform.id == 'uber')
-            TextFormField(
-              controller: _uberBruttoController,
-              decoration: InputDecoration(
-                labelText: 'Uber ${l10n.showBrutto.split(' ').last}',
-                prefixIcon: const Icon(Icons.directions_car_rounded),
-                suffixText: 'kr',
-              ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          TextFormField(
+            controller: _uberBruttoController,
+            decoration: InputDecoration(
+              labelText: 'Uber ${l10n.showBrutto.split(' ').last}',
+              prefixIcon: const Icon(Icons.directions_car_rounded),
+              suffixText: 'kr',
             ),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          ),
 
-          const SizedBox(height: 28),
+          const SizedBox(height: 32),
 
           // Save button
           FilledButton.icon(
-            onPressed: () => _save(currentPlatform.id, currentPlatform.name),
+            onPressed: () => _save('manual', 'Earnings'),
             icon: const Icon(Icons.save_rounded),
             label: Text(l10n.save),
+
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(52),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -247,15 +229,8 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen> with SingleTick
     );
   }
 
-  IconData _getPlatformIcon(String id) {
-    switch (id) {
-      case 'bolt': return Icons.electric_bolt_rounded;
-      case 'uber': return Icons.directions_car_rounded;
-      default: return Icons.local_taxi_rounded;
-    }
-  }
-
   Future<void> _save(String platformId, String platformName) async {
+
     final l10n = AppLocalizations.of(context)!;
     if (_selectedDriverId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -294,9 +269,7 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen> with SingleTick
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n.get('earning_saved')
-              .replaceAll('{platform}', platformName)
-              .replaceAll('{week}', _week.toString())),
+            content: Text(l10n.earningSaved(platformName, _week.toString())),
             behavior: SnackBarBehavior.floating,
             backgroundColor: const Color(0xFF34A853),
           ),
